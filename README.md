@@ -10,6 +10,7 @@ A mindful gaming wellness app that helps gamers track, balance, and improve thei
 - **📊 Insights** - View detailed analytics on gaming patterns and balance trends
 - **👥 Community** - Compare progress with fellow mindful gamers
 - **⚙️ Settings** - Customize your experience and manage your profile
+- **🔐 User Accounts** - Sign up with email or Google, sync data across devices
 - **📱 PWA Support** - Install as a native app on any device
 
 ## Tech Stack
@@ -19,6 +20,7 @@ A mindful gaming wellness app that helps gamers track, balance, and improve thei
 - **Vite** - Fast development and build tool
 - **Tailwind CSS v4** - Styling with Matsu (Ghibli-inspired) theme
 - **Zustand** - State management
+- **Firebase** - Authentication and Firestore database
 - **Framer Motion** - Animations
 - **Recharts** - Data visualization
 - **Radix UI** - Accessible component primitives

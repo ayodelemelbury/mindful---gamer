@@ -1,6 +1,7 @@
 import { useBudgetStore } from '../../store/budgetStore'
 import { BudgetEditor } from '../../components/budgets/BudgetEditor'
 import { GamesManager } from '../../components/games/GamesManager'
+import { UserProfile } from '../../components/settings/UserProfile'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
@@ -14,6 +15,8 @@ export function SettingsPage() {
         <h1 className="text-2xl font-semibold text-foreground">Settings</h1>
         <p className="text-muted-foreground text-sm">Customize your experience</p>
       </header>
+
+      <UserProfile />
 
       <GamesManager />
 

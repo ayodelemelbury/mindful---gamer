@@ -1,6 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import { Home, BarChart3, Users, Settings, Gamepad2 } from 'lucide-react'
 import { useBudgetStore } from '../../store/budgetStore'
+import { useAuth } from '../../hooks/useAuth'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 const navItems = [
   { to: '/', icon: Home, label: 'Dashboard' },
@@ -11,7 +13,15 @@ const navItems = [
 
 export function Sidebar() {
   const dailyBudget = useBudgetStore((s) => s.dailyBudget)
+  const { user } = useAuth()
   const percentage = Math.min((dailyBudget.current / dailyBudget.limit) * 100, 100)
+
+  const initials = (user?.displayName || user?.email || 'U')
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
 
   return (
     <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:w-64 bg-card border-r border-border z-20">
@@ -60,7 +70,33 @@ export function Sidebar() {
           </div>
         </div>
       </div>
+
+      {/* User profile section */}
+      {user && (
+        <div className="px-4 py-4 border-t border-border">
+          <NavLink
+            to="/settings"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors"
+          >
+            <Avatar className="w-8 h-8">
+              <AvatarImage src={user.photoURL || undefined} />
+              <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">
+                {user.displayName || 'Gamer'}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {user.email}
+              </p>
+            </div>
+          </NavLink>
+        </div>
+      )}
     </aside>
   )
 }
+
 
