@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mindful-gamer",
+  "compatibility_date": "2025-12-16",
+  "pages_build_output_dir": "./dist",
+  // Serve the static assets from the dist folder
+  "assets": {
+    "directory": "./dist"
+  }
+}
