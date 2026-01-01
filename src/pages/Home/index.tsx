@@ -94,7 +94,7 @@ export function HomePage() {
       // Stop session and open note dialog
       const gameName = activeSession.selectedGameName
       const result = stopSession()
-      
+
       if (result && result.duration > 0 && gameName) {
         setFinishedSession({
           gameName,
@@ -115,8 +115,8 @@ export function HomePage() {
         finishedSession.gameName,
         finishedSession.duration,
         undefined, // packageName (auto-resolved)
-        false,     // skipBudgetUpdate
-        note       // session note
+        false, // skipBudgetUpdate
+        note // session note
       )
     }
     setShowNoteDialog(false)
@@ -267,11 +267,24 @@ export function HomePage() {
       </div>
 
       <NudgeToast message={nudge || ""} visible={!!nudge} onDismiss={dismiss} />
-      
+
       {finishedSession && (
         <SessionNoteDialog
           open={showNoteDialog}
-          onClose={() => setShowNoteDialog(false)}
+          onClose={() => {
+            // Save session without note if dialog is dismissed
+            if (finishedSession) {
+              addSession(
+                finishedSession.gameName,
+                finishedSession.duration,
+                undefined,
+                false,
+                undefined
+              )
+            }
+            setShowNoteDialog(false)
+            setFinishedSession(null)
+          }}
           onSave={handleSaveNote}
           gameName={finishedSession.gameName}
           duration={finishedSession.duration}
