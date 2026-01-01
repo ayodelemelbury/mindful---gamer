@@ -89,6 +89,35 @@ export function useUsageTracking(): UseUsageTrackingResult {
   const userPackageMappings = settings?.customPackageMappings ?? {}
   const ignoredPackages = settings?.ignoredPackages ?? []
 
+  const checkCurrentForegroundGame = useCallback(async () => {
+    if (!isAvailable || permissionStatus !== "granted") return
+
+    try {
+      const result = await isGameInForeground(userPackageMappings, userLibraryGames)
+      setCurrentForegroundGame(result)
+    } catch (error) {
+      console.error("Error checking foreground game:", error)
+      setCurrentForegroundGame(null)
+    }
+  }, [isAvailable, permissionStatus, userPackageMappings, userLibraryGames])
+
+  const startForegroundPolling = useCallback(() => {
+    if (!isAvailable || permissionStatus !== "granted") return
+
+    checkCurrentForegroundGame()
+
+    pollingIntervalRef.current = window.setInterval(() => {
+      checkCurrentForegroundGame()
+    }, 5000)
+  }, [isAvailable, permissionStatus, checkCurrentForegroundGame])
+
+  const stopForegroundPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      window.clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
+  }, [])
+
   // Check permission on mount and listen for app resume
   useEffect(() => {
     if (!isAvailable) return
@@ -108,8 +137,6 @@ export function useUsageTracking(): UseUsageTrackingResult {
       }
     })
 
-    // Listen for app resume to check permission after returning from settings
-    // Also refresh sessions immediately when app resumes (if permission granted)
     const listener = App.addListener("appStateChange", async ({ isActive }) => {
       if (isActive) {
         if (awaitingPermission.current) {
@@ -123,14 +150,12 @@ export function useUsageTracking(): UseUsageTrackingResult {
             startForegroundPolling()
           }
         }
-        // Use ref to get current permission status (avoids stale closure)
         else if (permissionStatusRef.current === "granted") {
           console.log("[AutoTracking] App resumed, refreshing sessions...")
           refreshSessions()
           checkCurrentForegroundGame()
         }
       } else {
-        // App went to background, stop polling
         stopForegroundPolling()
       }
     })
@@ -181,7 +206,6 @@ export function useUsageTracking(): UseUsageTrackingResult {
         const syncedTotal = dailySyncedMap[session.packageName] || 0
         const delta = currentTotal - syncedTotal
 
-        // Only sync if delta meets minimum threshold (prevents micro-updates)
         if (delta >= MIN_SESSION_DELTA_MINUTES) {
           sessionsToAdd.push({ name: session.gameName, duration: delta })
           newDailySyncedMap[session.packageName] = currentTotal
@@ -205,7 +229,7 @@ export function useUsageTracking(): UseUsageTrackingResult {
         }))
       )
       setLastSyncTime(new Date())
-      setRetryCount(0) // Reset retry count on success
+      setRetryCount(0)
 
       clearPendingSessions()
 
@@ -220,7 +244,6 @@ export function useUsageTracking(): UseUsageTrackingResult {
       setError(
         err instanceof Error ? err.message : "Failed to fetch usage data"
       )
-      // Auto-retry up to 3 times with exponential backoff
       if (retryCount < 3) {
         const delay = Math.pow(2, retryCount) * 1000
         setTimeout(() => {
@@ -231,7 +254,6 @@ export function useUsageTracking(): UseUsageTrackingResult {
     } finally {
       setIsLoading(false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isAvailable,
     permissionStatus,
@@ -251,7 +273,6 @@ export function useUsageTracking(): UseUsageTrackingResult {
     try {
       awaitingPermission.current = true
       await requestUsagePermission()
-      // Permission check happens in appStateChange listener when user returns
     } catch {
       awaitingPermission.current = false
       setError("Failed to open settings")
@@ -263,7 +284,6 @@ export function useUsageTracking(): UseUsageTrackingResult {
     (session: AutoTrackedSession) => {
       addSession(session.gameName, session.duration)
 
-      // Mark as synced
       setAutoSessions((prev) =>
         prev.map((s) => (s.id === session.id ? { ...s, synced: true } : s))
       )
@@ -278,10 +298,8 @@ export function useUsageTracking(): UseUsageTrackingResult {
       addSession(session.gameName, session.duration)
     })
 
-    // Mark all as synced
     setAutoSessions((prev) => prev.map((s) => ({ ...s, synced: true })))
 
-    // Clear pending from background sync
     clearPendingSessions()
   }, [autoSessions, addSession])
 
@@ -293,7 +311,6 @@ export function useUsageTracking(): UseUsageTrackingResult {
         ignoredPackages: [...currentIgnored, packageName],
       })
 
-      // Remove from unmapped games
       setUnmappedGames((prev) =>
         prev.filter((g) => g.packageName !== packageName)
       )
@@ -307,7 +324,6 @@ export function useUsageTracking(): UseUsageTrackingResult {
       refreshSessions()
       startForegroundPolling()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [permissionStatus])
 
   useEffect(() => {
