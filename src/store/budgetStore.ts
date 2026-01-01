@@ -25,20 +25,40 @@ export const useBudgetStore = create<BudgetState>()(
         })),
       setDailyLimit: (limit) =>
         set((state) => ({
-          dailyBudget: { ...state.dailyBudget, limit },
+          dailyBudget: { 
+            ...state.dailyBudget, 
+            limit,
+            baseLimit: limit 
+          },
         })),
       setWeeklyLimit: (limit) =>
         set((state) => ({
           weeklyBudget: { ...state.weeklyBudget, limit },
         })),
       resetDaily: () =>
-        set((state) => ({
-          dailyBudget: { ...state.dailyBudget, current: 0 },
-        })),
+        set((state) => {
+          const { dailyBudget } = state
+          
+          const remaining = Math.max(0, dailyBudget.limit - dailyBudget.current)
+          
+          const maxRollover = 60
+          const rolloverAmount = Math.min(remaining, maxRollover)
+          
+          const baseLimit = dailyBudget.baseLimit ?? dailyBudget.limit
+          
+          return {
+            dailyBudget: {
+              ...dailyBudget,
+              current: 0,
+              rolloverMinutes: rolloverAmount,
+              limit: baseLimit + rolloverAmount,
+              baseLimit: baseLimit, 
+            },
+          }
+        }),
     }),
     {
       name: 'mindful-gamer-budgets',
     }
   )
 )
-
