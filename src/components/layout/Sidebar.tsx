@@ -1,25 +1,32 @@
 import { NavLink } from 'react-router-dom'
 import { Home, BarChart3, Users, Settings, Gamepad2 } from 'lucide-react'
 import { useBudgetStore } from '../../store/budgetStore'
-import { useAuth } from '../../hooks/useAuth'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { useSessionStore } from "../../store/sessionStore"
+import { useAuth } from "../../hooks/useAuth"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ActiveSessionIndicator } from "./ActiveSessionIndicator"
+import { formatDuration } from "@/lib/formatDuration"
 
 const navItems = [
-  { to: '/', icon: Home, label: 'Dashboard' },
-  { to: '/insights', icon: BarChart3, label: 'Insights' },
-  { to: '/community', icon: Users, label: 'Community' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
+  { to: "/", icon: Home, label: "Dashboard" },
+  { to: "/insights", icon: BarChart3, label: "Insights" },
+  { to: "/community", icon: Users, label: "Community" },
+  { to: "/settings", icon: Settings, label: "Settings" },
 ]
 
 export function Sidebar() {
   const dailyBudget = useBudgetStore((s) => s.dailyBudget)
+  const { activeSession } = useSessionStore()
   const { user } = useAuth()
-  const percentage = Math.min((dailyBudget.current / dailyBudget.limit) * 100, 100)
+  const percentage = Math.min(
+    (dailyBudget.current / dailyBudget.limit) * 100,
+    100
+  )
 
-  const initials = (user?.displayName || user?.email || 'U')
-    .split(' ')
-    .map(n => n[0])
-    .join('')
+  const initials = (user?.displayName || user?.email || "U")
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
     .toUpperCase()
     .slice(0, 2)
 
@@ -34,7 +41,14 @@ export function Sidebar() {
           <p className="text-xs text-muted-foreground">Play balanced</p>
         </div>
       </div>
-      
+
+      {/* Active Session Indicator - only show when session is active */}
+      {activeSession.isPlaying && (
+        <div className="px-4 py-3 border-b border-border">
+          <ActiveSessionIndicator />
+        </div>
+      )}
+
       <nav className="flex-1 px-4 py-6 space-y-1">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
@@ -43,8 +57,8 @@ export function Sidebar() {
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                 isActive
-                  ? 'bg-primary/20 text-primary border border-primary-border'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                  ? "bg-primary/20 text-primary border border-primary-border"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               }`
             }
           >
@@ -53,17 +67,23 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
-      
+
       <div className="px-4 py-4 border-t border-border">
         <div className="px-4 py-3 bg-secondary rounded-lg border border-border">
           <div className="flex justify-between items-center mb-2">
             <p className="text-xs text-muted-foreground">Today's Progress</p>
-            <p className="text-xs font-medium text-foreground">{dailyBudget.current} / {dailyBudget.limit} min</p>
+            <p className="text-xs font-medium text-foreground">
+              {formatDuration(dailyBudget.current)} / {formatDuration(dailyBudget.limit)}
+            </p>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
-                percentage >= 100 ? 'bg-destructive' : percentage >= 80 ? 'bg-chart-4' : 'bg-primary'
+                percentage >= 100
+                  ? "bg-destructive"
+                  : percentage >= 80
+                  ? "bg-chart-4"
+                  : "bg-primary"
               }`}
               style={{ width: `${percentage}%` }}
             />
@@ -86,7 +106,7 @@ export function Sidebar() {
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">
-                {user.displayName || 'Gamer'}
+                {user.displayName || "Gamer"}
               </p>
               <p className="text-xs text-muted-foreground truncate">
                 {user.email}
@@ -98,5 +118,3 @@ export function Sidebar() {
     </aside>
   )
 }
-
-
