@@ -39,7 +39,7 @@ interface SessionState {
   removeGame: (gameId: string) => void
   updateGameTime: (gameId: string, minutes: number) => void
   updateGameRating: (gameId: string, rating: number) => void
-  startSession: (gameId: string, gameName: string) => void
+  startSession: (gameId: string, gameName: string) => Promise<void>
   stopSession: () => { duration: number } | null
   updateLastBudgetMinute: (minute: number) => void
   getElapsedSeconds: () => number
