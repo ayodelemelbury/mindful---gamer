@@ -11,6 +11,7 @@ import {
   getAutoTrackedSessions,
   type AutoTrackedSession,
 } from "./usageTracking"
+import { loadBackgroundConfig } from "./backgroundConfig"
 
 const PENDING_SESSIONS_KEY = "mindful-gamer-pending-auto-sessions"
 const LAST_SYNC_KEY = "mindful-gamer-last-sync"
@@ -40,8 +41,16 @@ export async function registerBackgroundSync(): Promise<boolean> {
         console.log("[BackgroundFetch] Event received:", taskId)
 
         try {
+          // Load user configuration for accurate detection
+          const config = await loadBackgroundConfig()
+
           // Fetch auto-tracked sessions
-          const sessions = await getAutoTrackedSessions()
+          const sessions = await getAutoTrackedSessions(
+            config.userMappings,
+            config.userLibraryGames,
+            24, // Check last 24h
+            config.ignoredPackages
+          )
 
           // Store locally for next app open
           if (sessions.length > 0) {

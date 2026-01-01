@@ -7,6 +7,7 @@
 
 import { Capacitor } from "@capacitor/core"
 import { getGamePackageMap, getGameName } from "./gamePackageMap"
+import type { Game } from "../types"
 
 // ==================== Types ====================
 
@@ -174,7 +175,12 @@ export async function getPackageCategories(): Promise<Map<string, string>> {
 
     for (const pkg of result.packages || []) {
       const pkgWithCategory = pkg as { packageName: string; category?: number }
-      if (pkgWithCategory.category === 0) {
+      
+      if (
+        "category" in pkgWithCategory &&
+        typeof pkgWithCategory.category === "number" &&
+        pkgWithCategory.category === 0
+      ) {
         categories.set(pkg.packageName, "game")
       }
     }
@@ -217,12 +223,13 @@ function looksLikeGame(packageName: string): boolean {
 /**
  * Get auto-tracked game sessions from the last N hours
  * Detection via:
- * 1. Known game packages (curated list + user mappings)
+ * 1. Known game packages (user library + custom mappings + fallback)
  * 2. Android CATEGORY_GAME flag (when available)
  * 3. Package name patterns that suggest games
  */
 export async function getAutoTrackedSessions(
   userMappings: Record<string, string> = {},
+  userLibraryGames: Game[] = [],
   timeConfig: number | { start: number; end: number } = 24,
   ignoredPackages: string[] = []
 ): Promise<AutoTrackedSession[]> {
@@ -243,7 +250,7 @@ export async function getAutoTrackedSessions(
 
   // Get usage stats and package category info
   const usageStats = await queryUsageStats(startTime, endTime)
-  const packageMap = getGamePackageMap(userMappings)
+  const packageMap = getGamePackageMap(userMappings, userLibraryGames)
   const ignoredSet = new Set(ignoredPackages)
 
   // Also get package category info for game detection
@@ -266,10 +273,12 @@ export async function getAutoTrackedSessions(
     })
     .sort((a, b) => b.lastTimeUsed - a.lastTimeUsed)
     .map((stat) => ({
-      id: `auto-${stat.packageName}-${stat.lastTimeUsed}`,
+      id: `auto-${stat.packageName}-${stat.lastTimeUsed}-${Math.random()
+        .toString(36)
+        .slice(2, 7)}`,
       packageName: stat.packageName,
       gameName:
-        getGameName(stat.packageName, userMappings) ||
+        getGameName(stat.packageName, userMappings, userLibraryGames) ||
         stat.appName ||
         formatPackageName(stat.packageName),
       gameIcon: null,
@@ -294,13 +303,13 @@ function formatPackageName(packageName: string): string {
     .trim()
 }
 
-
-
 /**
- * Get potential games (apps in CATEGORY_GAME) that aren't mapped yet
+ * Get potential games (apps in CATEGORY_GAME or matching game patterns) that aren't mapped yet.
+ * Bug fix: Now includes regex-matched games for user to confirm.
  */
 export async function getUnmappedGames(
-  userMappings: Record<string, string> = {}
+  userMappings: Record<string, string> = {},
+  userLibraryGames: Game[] = []
 ): Promise<UsageStat[]> {
   if (!isNativeAndroid()) {
     return []
@@ -310,13 +319,19 @@ export async function getUnmappedGames(
   const startTime = endTime - 7 * 24 * 60 * 60 * 1000 // Last 7 days
 
   const usageStats = await queryUsageStats(startTime, endTime)
-  const packageMap = getGamePackageMap(userMappings)
+  const packageMap = getGamePackageMap(userMappings, userLibraryGames)
   const packageCategories = await getPackageCategories()
 
   return usageStats
     .filter((stat) => {
+      // Skip if already in our package map
+      if (packageMap.has(stat.packageName)) return false
+
+      // Include if: marked as game by Android OR looks like a game by name pattern
       const isCategoryGame = packageCategories.get(stat.packageName) === "game"
-      return isCategoryGame && !packageMap.has(stat.packageName)
+      const hasGameLikeName = looksLikeGame(stat.packageName)
+
+      return isCategoryGame || hasGameLikeName
     })
     .filter((stat) => stat.totalTimeInForeground > 60000)
     .sort((a, b) => b.totalTimeInForeground - a.totalTimeInForeground)

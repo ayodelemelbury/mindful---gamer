@@ -22,6 +22,7 @@ import {
   getLastSyncTime,
   registerBackgroundSync,
 } from "@/lib/backgroundSync"
+import { saveBackgroundConfig } from "@/lib/backgroundConfig"
 import { useUserStore } from "@/store/userStore"
 import { useSessionStore } from "@/store/sessionStore"
 
@@ -68,7 +69,7 @@ export function useUsageTracking(): UseUsageTrackingResult {
   const MIN_SESSION_DELTA_MINUTES = 2
 
   const { settings, updateSettings } = useUserStore()
-  const { addSession } = useSessionStore()
+  const { addSession, games: userLibraryGames } = useSessionStore()
 
   // Memoize to prevent unnecessary re-renders
   const userPackageMappings = settings?.customPackageMappings ?? {}
@@ -92,13 +93,21 @@ export function useUsageTracking(): UseUsageTrackingResult {
     })
 
     // Listen for app resume to check permission after returning from settings
+    // Also refresh sessions immediately when app resumes (if permission granted)
     const listener = App.addListener("appStateChange", async ({ isActive }) => {
-      if (isActive && awaitingPermission.current) {
-        const status = await checkUsagePermission()
-        if (status === "granted") {
-          setPermissionStatus(status)
-          awaitingPermission.current = false
-          registerBackgroundSync()
+      if (isActive) {
+        if (awaitingPermission.current) {
+          const status = await checkUsagePermission()
+          if (status === "granted") {
+            setPermissionStatus(status)
+            awaitingPermission.current = false
+            registerBackgroundSync()
+            refreshSessions()
+          }
+        }
+        else if (permissionStatus === "granted") {
+          console.log("[AutoTracking] App resumed, refreshing sessions...")
+          refreshSessions()
         }
       }
     })
@@ -122,6 +131,7 @@ export function useUsageTracking(): UseUsageTrackingResult {
 
       const sessions = await getAutoTrackedSessions(
         userPackageMappings,
+        userLibraryGames,
         { start: startOfDay.getTime(), end: now.getTime() },
         ignoredPackages
       )
@@ -175,7 +185,10 @@ export function useUsageTracking(): UseUsageTrackingResult {
 
       clearPendingSessions()
 
-      const unmapped = await getUnmappedGames(userPackageMappings)
+      const unmapped = await getUnmappedGames(
+        userPackageMappings,
+        userLibraryGames
+      )
       setUnmappedGames(
         unmapped.filter((g) => !ignoredPackages.includes(g.packageName))
       )
@@ -199,6 +212,7 @@ export function useUsageTracking(): UseUsageTrackingResult {
     isAvailable,
     permissionStatus,
     userPackageMappings,
+    userLibraryGames,
     ignoredPackages,
     settings?.autoTrackingLastSync,
     settings?.autoTrackingDailySynced,
@@ -270,6 +284,21 @@ export function useUsageTracking(): UseUsageTrackingResult {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [permissionStatus])
+
+  useEffect(() => {
+    if (permissionStatus === "granted") {
+      saveBackgroundConfig({
+        userMappings: userPackageMappings,
+        userLibraryGames: userLibraryGames,
+        ignoredPackages: ignoredPackages,
+      })
+    }
+  }, [
+    permissionStatus,
+    userPackageMappings,
+    userLibraryGames,
+    ignoredPackages,
+  ])
 
   return {
     isAvailable,
