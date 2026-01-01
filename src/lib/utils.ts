@@ -13,6 +13,12 @@ export function cn(...inputs: ClassValue[]) {
 export function formatTimeAgo(timestamp: number): string {
   const now = Date.now()
   const diffMs = now - timestamp
+
+  // Guard for future timestamps (clock skew, etc.)
+  if (diffMs < 0) {
+    return "Just now"
+  }
+
   const diffSeconds = Math.floor(diffMs / 1000)
   const diffMinutes = Math.floor(diffSeconds / 60)
   const diffHours = Math.floor(diffMinutes / 60)
@@ -31,7 +37,10 @@ export function formatTimeAgo(timestamp: number): string {
   } else {
     // Format as date for older entries
     const date = new Date(timestamp)
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    return date.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    })
   }
 }
 
