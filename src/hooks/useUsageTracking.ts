@@ -77,7 +77,7 @@ export function useUsageTracking(): UseUsageTrackingResult {
   const [retryCount, setRetryCount] = useState(0)
   const awaitingPermission = useRef(false)
   const permissionStatusRef = useRef<PermissionStatus>("unavailable")
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const pollingIntervalRef = useRef<number | null>(null)
 
   // Minimum session delta to sync (prevents micro-updates)
   const MIN_SESSION_DELTA_MINUTES = 2
