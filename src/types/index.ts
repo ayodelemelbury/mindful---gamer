@@ -112,6 +112,8 @@ export type ReportReason = "spam" | "inappropriate" | "misleading" | "other"
 export type ReportStatus = "pending" | "reviewed" | "actioned"
 export type ContentType = "review" | "comment" | "profile"
 
+export type ReportAction = "dismiss" | "hide" | "remove"
+
 export interface ModerationReport {
   id: string
   contentType: ContentType
@@ -121,4 +123,6 @@ export interface ModerationReport {
   details: string
   status: ReportStatus
   createdAt: Date
+  actionTaken?: ReportAction
+  actionedAt?: Date
 }

@@ -15,7 +15,12 @@ import {
   type QueryDocumentSnapshot,
 } from "firebase/firestore"
 import { db } from "./firebase"
-import type { ModerationReport, ReportReason, ContentType } from "../types"
+import type {
+  ModerationReport,
+  ReportReason,
+  ContentType,
+  ReportAction,
+} from "../types"
 
 // ============ Reporting ============
 
@@ -103,7 +108,7 @@ export async function getAllReports(
   return snapshot.docs.map((doc) => docToReport(doc))
 }
 
-export type ReportAction = "dismiss" | "hide" | "remove"
+// ReportAction is imported from types
 
 export async function actionReport(
   reportId: string,
@@ -149,7 +154,9 @@ function getCollectionName(contentType: ContentType): string {
     case "profile":
       return "userProfiles"
     default:
-      return "communityReviews"
+      throw new RangeError(
+        `Invalid contentType: "${contentType}". Expected one of: "review", "comment", "profile".`
+      )
   }
 }
 
@@ -164,5 +171,7 @@ function docToReport(docSnap: QueryDocumentSnapshot): ModerationReport {
     details: data.details || "",
     status: data.status,
     createdAt: data.createdAt?.toDate() || new Date(),
+    actionTaken: data.actionTaken,
+    actionedAt: data.actionedAt?.toDate() || undefined,
   }
 }
