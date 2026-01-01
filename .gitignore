@@ -13,6 +13,8 @@ dist-ssr
 dev-dist
 *.local
 
+.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -23,3 +25,24 @@ dev-dist
 *.njsproj
 *.sln
 *.sw?
+
+# Environment
+.env.production
+.env.development
+.env.local
+
+# Capacitor
+android/app/build/
+android/.gradle/
+android/app/src/main/assets/public/
+android/capacitor.settings.gradle
+
+# Firebase
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
+# AI / Ephemeral
+history/
+curr
