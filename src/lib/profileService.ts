@@ -6,7 +6,6 @@ import {
   getDoc,
   setDoc,
   updateDoc,
-  deleteDoc,
   collection,
   query,
   where,
@@ -15,6 +14,7 @@ import {
   increment,
   serverTimestamp,
   limit,
+  runTransaction,
 } from "firebase/firestore"
 import { db } from "./firebase"
 import type { UserProfile, Follow, ActivityType, ActivityFeedItem } from "../types"
@@ -136,24 +136,31 @@ export async function followUser(
     throw new Error("Cannot follow yourself")
   }
 
-  // Check if already following
-  const existingFollow = await getFollowDoc(followerId, followingId)
-  if (existingFollow) return
+  await runTransaction(db, async (transaction) => {
+    // Check if already following
+    const q = query(
+      collection(db, "follows"),
+      where("followerId", "==", followerId),
+      where("followingId", "==", followingId)
+    )
+    const snapshot = await getDocs(q)
+    if (!snapshot.empty) return
 
-  // Create follow document
-  const followRef = doc(collection(db, "follows"))
-  await setDoc(followRef, {
-    followerId,
-    followingId,
-    createdAt: serverTimestamp(),
+    // Create follow document
+    const followRef = doc(collection(db, "follows"))
+    transaction.set(followRef, {
+      followerId,
+      followingId,
+      createdAt: serverTimestamp(),
+    })
+
+    // Update counts
+    const followerProfile = doc(db, "userProfiles", followerId)
+    const followingProfile = doc(db, "userProfiles", followingId)
+
+    transaction.update(followerProfile, { followingCount: increment(1) })
+    transaction.update(followingProfile, { followerCount: increment(1) })
   })
-
-  // Update counts
-  const followerProfile = doc(db, "userProfiles", followerId)
-  const followingProfile = doc(db, "userProfiles", followingId)
-
-  await updateDoc(followerProfile, { followingCount: increment(1) })
-  await updateDoc(followingProfile, { followerCount: increment(1) })
 
   // Notify the followed user
   await addActivityItem(
@@ -173,14 +180,21 @@ export async function unfollowUser(
   const existingFollow = await getFollowDoc(followerId, followingId)
   if (!existingFollow) return
 
-  await deleteDoc(doc(db, "follows", existingFollow.id))
+  await runTransaction(db, async (transaction) => {
+    const followRef = doc(db, "follows", existingFollow.id)
+    const followSnap = await transaction.get(followRef)
 
-  // Update counts
-  const followerProfile = doc(db, "userProfiles", followerId)
-  const followingProfile = doc(db, "userProfiles", followingId)
+    if (!followSnap.exists()) return
 
-  await updateDoc(followerProfile, { followingCount: increment(-1) })
-  await updateDoc(followingProfile, { followerCount: increment(-1) })
+    transaction.delete(followRef)
+
+    // Update counts
+    const followerProfile = doc(db, "userProfiles", followerId)
+    const followingProfile = doc(db, "userProfiles", followingId)
+
+    transaction.update(followerProfile, { followingCount: increment(-1) })
+    transaction.update(followingProfile, { followerCount: increment(-1) })
+  })
 }
 
 export async function isFollowing(
