@@ -8,6 +8,14 @@
 import { Capacitor } from "@capacitor/core"
 import { getGamePackageMap, getGameName } from "./gamePackageMap"
 import type { Game } from "../types"
+import {
+  UsageEventsPlugin,
+  type UsageEvent,
+  type QueryEventsResult,
+  type CurrentForegroundResult,
+} from "../plugins/usageEvents"
+
+export type { UsageEvent }
 
 // ==================== Types ====================
 
@@ -335,4 +343,80 @@ export async function getUnmappedGames(
     })
     .filter((stat) => stat.totalTimeInForeground > 60000)
     .sort((a, b) => b.totalTimeInForeground - a.totalTimeInForeground)
+}
+
+
+// ==================== Real-Time Detection (UsageEvents API) ====================
+
+/**
+ * Query usage events for a specific time range.
+ * Returns foreground/background transition events.
+ */
+export async function queryUsageEvents(
+  beginTime: number,
+  endTime: number
+): Promise<UsageEvent[]> {
+  if (!isNativeAndroid()) {
+    return []
+  }
+
+  try {
+    const result: QueryEventsResult = await UsageEventsPlugin.queryEvents({
+      beginTime,
+      endTime,
+    })
+    return result.events || []
+  } catch (error) {
+    console.error("Error querying usage events:", error)
+    return []
+  }
+}
+
+/**
+ * Get the currently active foreground app.
+ * Returns null if unable to determine or on non-Android platforms.
+ */
+export async function getCurrentForegroundApp(): Promise<string | null> {
+  if (!isNativeAndroid()) {
+    return null
+  }
+
+  try {
+    const result: CurrentForegroundResult =
+      await UsageEventsPlugin.getCurrentForegroundApp()
+    return result.packageName
+  } catch (error) {
+    console.error("Error getting foreground app:", error)
+    return null
+  }
+}
+
+/**
+ * Check if a specific game is currently in the foreground.
+ */
+export async function isGameInForeground(
+  userMappings: Record<string, string> = {},
+  userLibraryGames: Game[] = []
+): Promise<{ isPlaying: boolean; packageName: string | null; gameName: string | null }> {
+  const foregroundPkg = await getCurrentForegroundApp()
+
+  if (!foregroundPkg) {
+    return { isPlaying: false, packageName: null, gameName: null }
+  }
+
+  const packageMap = getGamePackageMap(userMappings, userLibraryGames)
+  const packageCategories = await getPackageCategories()
+
+  const isKnownGame = packageMap.has(foregroundPkg)
+  const isCategoryGame = packageCategories.get(foregroundPkg) === "game"
+  const hasGameLikeName = looksLikeGame(foregroundPkg)
+
+  if (isKnownGame || isCategoryGame || hasGameLikeName) {
+    const gameName =
+      getGameName(foregroundPkg, userMappings, userLibraryGames) ||
+      formatPackageName(foregroundPkg)
+    return { isPlaying: true, packageName: foregroundPkg, gameName }
+  }
+
+  return { isPlaying: false, packageName: null, gameName: null }
 }
