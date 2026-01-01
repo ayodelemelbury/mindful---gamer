@@ -1,0 +1,137 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/userProfiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // User Profiles
+    match /userProfiles/{userId} {
+      // Anyone can read profiles
+      allow read: if true;
+
+      // Users can create/update their own profile
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) &&
+        // Prevent users from making themselves admin
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isAdmin']));
+
+      // Only admins can delete profiles
+      allow delete: if isAdmin();
+    }
+
+    // Follow relationships
+    match /follows/{followId} {
+      // Anyone can read follows
+      allow read: if true;
+
+      // Authenticated users can create follows (as follower)
+      allow create: if isAuthenticated() &&
+        request.resource.data.followerId == request.auth.uid;
+
+      // Users can delete their own follows
+      allow delete: if isAuthenticated() &&
+        resource.data.followerId == request.auth.uid;
+    }
+
+    // Community Reviews
+    match /communityReviews/{reviewId} {
+      // Anyone can read active reviews
+      allow read: if resource.data.status == 'active' || isOwner(resource.data.userId) || isAdmin();
+
+      // Authenticated users can create reviews
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'active';
+
+      // Users can update their own reviews (except status unless admin)
+      allow update: if isOwner(resource.data.userId) || isAdmin();
+
+      // Users can delete their own reviews, admins can delete any
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    // Comments
+    match /comments/{commentId} {
+      // Anyone can read active comments
+      allow read: if resource.data.status == 'active' || isOwner(resource.data.userId) || isAdmin();
+
+      // Authenticated users can create comments
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'active';
+
+      // Users can delete their own comments, admins can moderate
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+
+      // Only admins can update status (for moderation)
+      allow update: if isAdmin();
+    }
+
+    // Likes
+    match /likes/{likeId} {
+      // Anyone can read likes
+      allow read: if true;
+
+      // Authenticated users can create likes (as themselves)
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
+
+      // Users can delete their own likes
+      allow delete: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid;
+    }
+
+    // Activity Feed (per-user subcollection)
+    match /activityFeed/{userId}/items/{itemId} {
+      // Users can only read their own feed
+      allow read: if isOwner(userId);
+
+      // System creates feed items (via Cloud Functions or server-side)
+      // For now, allow authenticated users to create for themselves
+      allow create: if isAuthenticated();
+
+      // Users can mark their own feed items as read
+      allow update: if isOwner(userId);
+
+      // Users can delete their own feed items
+      allow delete: if isOwner(userId);
+    }
+
+    // Moderation Reports
+    match /moderationReports/{reportId} {
+      // Only admins can read reports
+      allow read: if isAdmin();
+
+      // Authenticated users can create reports
+      allow create: if isAuthenticated() &&
+        request.resource.data.reporterId == request.auth.uid &&
+        request.resource.data.status == 'pending';
+
+      // Only admins can update reports (to action them)
+      allow update: if isAdmin();
+
+      // Only admins can delete reports
+      allow delete: if isAdmin();
+    }
+
+    // Existing users collection (for user data sync)
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+  }
+}
