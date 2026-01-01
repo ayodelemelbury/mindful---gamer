@@ -18,11 +18,11 @@ export function UserProfile() {
     if (!user) return
     setSyncing(true)
     setSyncError(null)
-    
+
     try {
       await syncToCloud(user.uid)
     } catch (err) {
-      setSyncError(err instanceof Error ? err.message : 'Sync failed')
+      setSyncError(err instanceof Error ? err.message : "Sync failed")
     } finally {
       setSyncing(false)
     }
@@ -30,11 +30,15 @@ export function UserProfile() {
 
   const handleSignOut = async () => {
     try {
+      // Sync data to cloud before signing out to prevent data loss
+      if (user) {
+        await syncToCloud(user.uid)
+      }
       await signOut()
       clearUserData()
-      navigate('/auth')
+      navigate("/auth")
     } catch (err) {
-      console.error('Sign out failed:', err)
+      console.error("Sign out failed:", err)
     }
   }
 
@@ -50,9 +54,10 @@ export function UserProfile() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Sign in to sync your data across devices and never lose your progress.
+            Sign in to sync your data across devices and never lose your
+            progress.
           </p>
-          <Button onClick={() => navigate('/auth')} className="w-full">
+          <Button onClick={() => navigate("/auth")} className="w-full">
             Sign In / Create Account
           </Button>
         </CardContent>
@@ -61,21 +66,26 @@ export function UserProfile() {
   }
 
   // Logged in state
-  const initials = (profile?.displayName || user.displayName || user.email || 'U')
-    .split(' ')
-    .map(n => n[0])
-    .join('')
+  const initials = (
+    profile?.displayName ||
+    user.displayName ||
+    user.email ||
+    "U"
+  )
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
     .toUpperCase()
     .slice(0, 2)
 
   const formatLastSync = (dateStr: string | null) => {
-    if (!dateStr) return 'Never'
+    if (!dateStr) return "Never"
     const date = new Date(dateStr)
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
     const diffMins = Math.floor(diffMs / 60000)
-    
-    if (diffMins < 1) return 'Just now'
+
+    if (diffMins < 1) return "Just now"
     if (diffMins < 60) return `${diffMins}m ago`
     if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`
     return date.toLocaleDateString()
@@ -92,14 +102,16 @@ export function UserProfile() {
       <CardContent className="space-y-4">
         <div className="flex items-center gap-3">
           <Avatar className="w-12 h-12">
-            <AvatarImage src={profile?.avatarUrl || user.photoURL || undefined} />
+            <AvatarImage
+              src={profile?.avatarUrl || user.photoURL || undefined}
+            />
             <AvatarFallback className="bg-primary/10 text-primary">
               {initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="font-medium text-foreground truncate">
-              {profile?.displayName || user.displayName || 'Gamer'}
+              {profile?.displayName || user.displayName || "Gamer"}
             </p>
             <p className="text-sm text-muted-foreground truncate">
               {profile?.email || user.email}
@@ -115,7 +127,7 @@ export function UserProfile() {
               <CloudOff className="w-4 h-4 text-muted-foreground" />
             )}
             <span className="text-muted-foreground">
-              Last synced: {formatLastSync(lastSyncedAt)}
+              Auto-sync • {formatLastSync(lastSyncedAt)}
             </span>
           </div>
           <Button
@@ -132,15 +144,9 @@ export function UserProfile() {
           </Button>
         </div>
 
-        {syncError && (
-          <p className="text-sm text-destructive">{syncError}</p>
-        )}
+        {syncError && <p className="text-sm text-destructive">{syncError}</p>}
 
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={handleSignOut}
-        >
+        <Button variant="outline" className="w-full" onClick={handleSignOut}>
           <LogOut className="w-4 h-4 mr-2" />
           Sign Out
         </Button>

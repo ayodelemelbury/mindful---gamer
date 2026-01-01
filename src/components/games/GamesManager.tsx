@@ -4,17 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Trash2, Gamepad2 } from 'lucide-react'
+import { formatDuration } from '@/lib/formatDuration'
 
 export function GamesManager() {
   const games = useSessionStore((s) => s.games)
   const removeGame = useSessionStore((s) => s.removeGame)
-
-  const formatTime = (minutes: number) => {
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-    if (hours === 0) return `${mins}m`
-    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
-  }
 
   return (
     <Card>
@@ -54,11 +48,11 @@ export function GamesManager() {
                     {game.category}
                   </Badge>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    {formatTime(game.totalTime)} played
-                  </span>
-                  {game.vibeTags.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {formatDuration(game.totalTime)} played
+                    </span>
+                    {game.vibeTags.length > 0 && (
                     <span className="text-xs text-muted-foreground">
                       • {game.vibeTags.slice(0, 2).join(', ')}
                     </span>

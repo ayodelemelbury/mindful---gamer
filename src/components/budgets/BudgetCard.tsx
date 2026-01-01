@@ -1,5 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { formatDuration } from '@/lib/formatDuration'
 
 interface BudgetCardProps {
   label: string
@@ -16,11 +17,10 @@ export function BudgetCard({ label, current, limit }: BudgetCardProps) {
       <CardContent className="pt-4">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-medium text-foreground">{label}</span>
-          <span className="text-xs text-muted-foreground">{remaining} min left</span>
+          <span className="text-xs text-muted-foreground">{formatDuration(remaining)} left</span>
         </div>
         <Progress value={percentage} className="h-2" />
       </CardContent>
     </Card>
   )
 }
-
