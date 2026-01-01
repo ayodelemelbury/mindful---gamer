@@ -13,21 +13,26 @@ export function useRecommendations(tag?: string): UseRecommendationsResult {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchGames = useCallback(async () => {
+  const fetchGames = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true)
     setError(null)
     try {
-      const results = await getRecommendedGames(tag, 6)
+      const results = await getRecommendedGames(tag, 6, signal)
       setGames(results)
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
       setError(err instanceof Error ? err.message : 'Failed to load recommendations')
     } finally {
-      setIsLoading(false)
+      if (!signal?.aborted) {
+        setIsLoading(false)
+      }
     }
   }, [tag])
 
   useEffect(() => {
-    fetchGames()
+    const controller = new AbortController()
+    fetchGames(controller.signal)
+    return () => controller.abort()
   }, [fetchGames])
 
   return { games, isLoading, error, refresh: fetchGames }
