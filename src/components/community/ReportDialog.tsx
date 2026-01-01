@@ -45,8 +45,17 @@ export function ReportDialog({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (!open && timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
+    if (!open) {
+      // Clear any pending timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+      // Reset all state when dialog closes to prevent stale values on reopen
+      setSuccess(false)
+      setReason("spam")
+      setDetails("")
+      setError(null)
     }
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)

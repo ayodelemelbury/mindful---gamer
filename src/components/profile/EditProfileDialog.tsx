@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import type { UserProfile } from "../../types"
 import { updateProfile } from "../../lib/profileService"
 import {
@@ -31,14 +31,22 @@ export function EditProfileDialog({
   const [bio, setBio] = useState(profile.bio)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const prevOpenRef = useRef(false)
 
-  // Sync local state when profile prop changes
+  // Sync local state only when dialog opens (transitions from closed to open)
+  // This prevents overwriting user edits when profile prop changes while editing
   useEffect(() => {
-    setDisplayName(profile.displayName)
-    setBio(profile.bio)
-    setError(null)
-    setIsSubmitting(false)
-  }, [profile.displayName, profile.bio])
+    const wasOpen = prevOpenRef.current
+    prevOpenRef.current = open
+
+    // Only sync when transitioning from closed to open
+    if (open && !wasOpen) {
+      setDisplayName(profile.displayName)
+      setBio(profile.bio)
+      setError(null)
+      setIsSubmitting(false)
+    }
+  }, [open, profile.displayName, profile.bio])
 
   const handleSubmit = async () => {
     if (!displayName.trim()) {

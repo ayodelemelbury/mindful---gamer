@@ -17,7 +17,7 @@ import {
   runTransaction,
 } from "firebase/firestore"
 import { db } from "./firebase"
-import type { UserProfile, Follow, ActivityType, ActivityFeedItem } from "../types"
+import type { UserProfile, ActivityType, ActivityFeedItem } from "../types"
 
 // ============ Profile CRUD ============
 
@@ -136,18 +136,13 @@ export async function followUser(
     throw new Error("Cannot follow yourself")
   }
 
-  await runTransaction(db, async (transaction) => {
-    // Check if already following
-    const q = query(
-      collection(db, "follows"),
-      where("followerId", "==", followerId),
-      where("followingId", "==", followingId)
-    )
-    const snapshot = await getDocs(q)
-    if (!snapshot.empty) return
+  const followId = `${followerId}_${followingId}`
+  const followRef = doc(db, "follows", followId)
 
-    // Create follow document
-    const followRef = doc(collection(db, "follows"))
+  await runTransaction(db, async (transaction) => {
+    const followSnap = await transaction.get(followRef)
+    if (followSnap.exists()) return // Already following
+
     transaction.set(followRef, {
       followerId,
       followingId,
@@ -177,13 +172,11 @@ export async function unfollowUser(
   followerId: string,
   followingId: string
 ): Promise<void> {
-  const existingFollow = await getFollowDoc(followerId, followingId)
-  if (!existingFollow) return
+  const followId = `${followerId}_${followingId}`
+  const followRef = doc(db, "follows", followId)
 
   await runTransaction(db, async (transaction) => {
-    const followRef = doc(db, "follows", existingFollow.id)
     const followSnap = await transaction.get(followRef)
-
     if (!followSnap.exists()) return
 
     transaction.delete(followRef)
@@ -201,31 +194,9 @@ export async function isFollowing(
   followerId: string,
   followingId: string
 ): Promise<boolean> {
-  const follow = await getFollowDoc(followerId, followingId)
-  return follow !== null
-}
-
-async function getFollowDoc(
-  followerId: string,
-  followingId: string
-): Promise<Follow | null> {
-  const q = query(
-    collection(db, "follows"),
-    where("followerId", "==", followerId),
-    where("followingId", "==", followingId)
-  )
-  const snapshot = await getDocs(q)
-
-  if (snapshot.empty) return null
-
-  const doc = snapshot.docs[0]
-  const data = doc.data()
-  return {
-    id: doc.id,
-    followerId: data.followerId,
-    followingId: data.followingId,
-    createdAt: data.createdAt?.toDate() || new Date(),
-  }
+  const followId = `${followerId}_${followingId}`
+  const followSnap = await getDoc(doc(db, "follows", followId))
+  return followSnap.exists()
 }
 
 export async function getFollowers(userId: string): Promise<UserProfile[]> {
