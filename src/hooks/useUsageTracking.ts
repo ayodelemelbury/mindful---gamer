@@ -13,6 +13,7 @@ import {
   requestUsagePermission,
   getAutoTrackedSessions,
   getUnmappedGames,
+  isGameInForeground,
   type AutoTrackedSession,
   type PermissionStatus,
   type UsageStat,
@@ -41,6 +42,12 @@ export interface UseUsageTrackingResult {
   error: string | null
   /** Last successful sync time */
   lastSyncTime: Date | null
+  /** Currently active foreground game (real-time) */
+  currentForegroundGame: {
+    isPlaying: boolean
+    packageName: string | null
+    gameName: string | null
+  } | null
   /** Request usage permission */
   requestPermission: () => Promise<void>
   /** Refresh sessions from device */
@@ -62,8 +69,15 @@ export function useUsageTracking(): UseUsageTrackingResult {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
+  const [currentForegroundGame, setCurrentForegroundGame] = useState<{
+    isPlaying: boolean
+    packageName: string | null
+    gameName: string | null
+  } | null>(null)
   const [retryCount, setRetryCount] = useState(0)
   const awaitingPermission = useRef(false)
+  const permissionStatusRef = useRef<PermissionStatus>("unavailable")
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // Minimum session delta to sync (prevents micro-updates)
   const MIN_SESSION_DELTA_MINUTES = 2
@@ -81,8 +95,10 @@ export function useUsageTracking(): UseUsageTrackingResult {
 
     checkUsagePermission().then((status) => {
       setPermissionStatus(status)
+      permissionStatusRef.current = status
       if (status === "granted") {
         registerBackgroundSync()
+        startForegroundPolling()
       }
     })
 
@@ -100,20 +116,28 @@ export function useUsageTracking(): UseUsageTrackingResult {
           const status = await checkUsagePermission()
           if (status === "granted") {
             setPermissionStatus(status)
+            permissionStatusRef.current = status
             awaitingPermission.current = false
             registerBackgroundSync()
             refreshSessions()
+            startForegroundPolling()
           }
         }
-        else if (permissionStatus === "granted") {
+        // Use ref to get current permission status (avoids stale closure)
+        else if (permissionStatusRef.current === "granted") {
           console.log("[AutoTracking] App resumed, refreshing sessions...")
           refreshSessions()
+          checkCurrentForegroundGame()
         }
+      } else {
+        // App went to background, stop polling
+        stopForegroundPolling()
       }
     })
 
     return () => {
       listener.then((l) => l.remove())
+      stopForegroundPolling()
     }
   }, [isAvailable])
 
@@ -281,6 +305,7 @@ export function useUsageTracking(): UseUsageTrackingResult {
   useEffect(() => {
     if (permissionStatus === "granted") {
       refreshSessions()
+      startForegroundPolling()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [permissionStatus])
@@ -300,6 +325,13 @@ export function useUsageTracking(): UseUsageTrackingResult {
     ignoredPackages,
   ])
 
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      stopForegroundPolling()
+    }
+  }, [])
+
   return {
     isAvailable,
     permissionStatus,
@@ -308,6 +340,7 @@ export function useUsageTracking(): UseUsageTrackingResult {
     isLoading,
     error,
     lastSyncTime,
+    currentForegroundGame,
     requestPermission,
     refreshSessions,
     syncSession,
