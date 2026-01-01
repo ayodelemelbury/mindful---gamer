@@ -18,7 +18,7 @@ export async function initializeStatusBar(): Promise<void> {
   try {
     const { StatusBar, Style } = await import('@capacitor/status-bar');
 
-    // Set status bar to overlay WebView (Android only)
+    // Disable status bar overlay for WebView on Android
     if (Capacitor.getPlatform() === 'android') {
       await StatusBar.setOverlaysWebView({ overlay: false });
       await StatusBar.setBackgroundColor({ color: '#E8DFC9' }); // Cream color
