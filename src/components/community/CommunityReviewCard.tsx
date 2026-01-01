@@ -44,8 +44,16 @@ export function CommunityReviewCard({
   const isOwn = currentUserId === review.userId
 
   const handleLike = async () => {
-    await toggleLike()
-    setLikeCount((prev) => (hasLiked ? prev - 1 : prev + 1))
+    try {
+      const newLikedState = await toggleLike()
+      // Only update count if toggle succeeded (returned a boolean, not null)
+      if (newLikedState !== null) {
+        setLikeCount((prev) => (newLikedState ? prev + 1 : prev - 1))
+      }
+    } catch (error) {
+      // Log the error; UI remains unchanged so it stays consistent with server state
+      console.error("Failed to toggle like:", error)
+    }
   }
 
   const handleDelete = () => {
@@ -65,7 +73,7 @@ export function CommunityReviewCard({
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={review.userAvatar || undefined} />
                   <AvatarFallback>
-                    {review.userDisplayName.charAt(0).toUpperCase()}
+                    {(review.userDisplayName?.charAt(0) || "?").toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
               </Link>

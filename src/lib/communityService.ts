@@ -15,10 +15,11 @@ import {
   getDocs,
   increment,
   serverTimestamp,
+  runTransaction,
   type QueryDocumentSnapshot,
 } from "firebase/firestore"
 import { db } from "./firebase"
-import type { CommunityReview, Like } from "../types"
+import type { CommunityReview } from "../types"
 import { getFollowerIds, addActivityItem } from "./profileService"
 
 // ============ Reviews ============
@@ -103,7 +104,7 @@ export async function submitReview(input: SubmitReviewInput): Promise<string> {
   // Batch writes would be better for scalability, but parallel promises are fine for MVP
   // Limit to first 50 followers to prevent massive write spikes in this version
   const notifyList = followerIds.slice(0, 50)
-  
+
   await Promise.all(
     notifyList.map((followerId) =>
       addActivityItem(
@@ -143,34 +144,38 @@ export async function likeReview(
   reviewId: string,
   userId: string
 ): Promise<void> {
-  const existingLike = await getLikeDoc(reviewId, userId)
-  if (existingLike) return
+  // Use deterministic ID to prevent duplicates
+  const likeId = `${reviewId}_${userId}`
+  const likeRef = doc(db, "likes", likeId)
+  const reviewRef = doc(db, "communityReviews", reviewId)
 
-  const likeRef = doc(collection(db, "likes"))
-  await setDoc(likeRef, {
-    reviewId,
-    userId,
-    createdAt: serverTimestamp(),
+  const reviewOwnerId = await runTransaction(db, async (transaction) => {
+    const likeSnap = await transaction.get(likeRef)
+    if (likeSnap.exists()) return null // Already liked
+
+    const reviewSnap = await transaction.get(reviewRef)
+    if (!reviewSnap.exists()) throw new Error("Review not found")
+
+    transaction.set(likeRef, {
+      reviewId,
+      userId,
+      createdAt: serverTimestamp(),
+    })
+    transaction.update(reviewRef, { likeCount: increment(1) })
+
+    return reviewSnap.data().userId as string
   })
 
-  const reviewRef = doc(db, "communityReviews", reviewId)
-  await updateDoc(reviewRef, { likeCount: increment(1) })
-
-  // Notify review owner
-  const reviewSnap = await getDoc(reviewRef)
-  if (reviewSnap.exists()) {
-    const reviewData = reviewSnap.data()
-    // Don't notify if liking own review
-    if (reviewData.userId !== userId) {
-      await addActivityItem(
-        reviewData.userId,
-        "like",
-        userId,
-        reviewId,
-        "review",
-        null
-      )
-    }
+  // Notify review owner (after transaction)
+  if (reviewOwnerId && reviewOwnerId !== userId) {
+    await addActivityItem(
+      reviewOwnerId,
+      "like",
+      userId,
+      reviewId,
+      "review",
+      null
+    )
   }
 }
 
@@ -178,44 +183,26 @@ export async function unlikeReview(
   reviewId: string,
   userId: string
 ): Promise<void> {
-  const existingLike = await getLikeDoc(reviewId, userId)
-  if (!existingLike) return
-
-  await deleteDoc(doc(db, "likes", existingLike.id))
-
+  const likeId = `${reviewId}_${userId}`
+  const likeRef = doc(db, "likes", likeId)
   const reviewRef = doc(db, "communityReviews", reviewId)
-  await updateDoc(reviewRef, { likeCount: increment(-1) })
+
+  await runTransaction(db, async (transaction) => {
+    const likeSnap = await transaction.get(likeRef)
+    if (!likeSnap.exists()) return // Not liked
+
+    transaction.delete(likeRef)
+    transaction.update(reviewRef, { likeCount: increment(-1) })
+  })
 }
 
 export async function hasLikedReview(
   reviewId: string,
   userId: string
 ): Promise<boolean> {
-  const like = await getLikeDoc(reviewId, userId)
-  return like !== null
-}
-
-async function getLikeDoc(
-  reviewId: string,
-  userId: string
-): Promise<Like | null> {
-  const q = query(
-    collection(db, "likes"),
-    where("reviewId", "==", reviewId),
-    where("userId", "==", userId)
-  )
-  const snapshot = await getDocs(q)
-
-  if (snapshot.empty) return null
-
-  const likeDoc = snapshot.docs[0]
-  const data = likeDoc.data()
-  return {
-    id: likeDoc.id,
-    reviewId: data.reviewId,
-    userId: data.userId,
-    createdAt: data.createdAt?.toDate() || new Date(),
-  }
+  const likeId = `${reviewId}_${userId}`
+  const likeSnap = await getDoc(doc(db, "likes", likeId))
+  return likeSnap.exists()
 }
 
 // ============ Helpers ============

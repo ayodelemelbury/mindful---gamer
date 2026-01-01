@@ -52,13 +52,13 @@ export function initializeAutoSync() {
 
     previousBudgetState = state
   })
-  
+
   console.log("[AutoSync] Initialized store subscriptions")
 }
 
 async function performSync(retryCount = 0) {
-  // Skip sync if no user or already syncing
-  if (!currentUser || isSyncing) return
+  // Skip sync if no user or already syncing (unless it's a retry)
+  if (!currentUser || (isSyncing && retryCount === 0)) return
 
   // Skip sync if data is being loaded from cloud (prevents race condition)
   const { isDataLoading, settings } = useUserStore.getState()
@@ -117,6 +117,9 @@ async function performSync(retryCount = 0) {
     await setDoc(doc(db, "users", currentUser.uid), dataToSync, { merge: true })
 
     useUserStore.setState({ lastSyncedAt: new Date().toISOString() })
+
+    // Success - allow new syncs
+    isSyncing = false
   } catch (error) {
     console.error("[AutoSync] Sync failed:", error)
 
@@ -128,12 +131,13 @@ async function performSync(retryCount = 0) {
           retryCount + 1
         }/${MAX_RETRIES})`
       )
+      // Keep isSyncing = true while retry is pending
       setTimeout(() => performSync(retryCount + 1), delay)
     } else {
       console.error("[AutoSync] Max retries reached, sync failed permanently")
+      // All retries exhausted - allow new syncs
+      isSyncing = false
     }
-  } finally {
-    isSyncing = false
   }
 }
 

@@ -20,6 +20,7 @@ export function CommentSection({
   const { comments, isLoading, add, remove } = useComments(reviewId)
   const [newComment, setNewComment] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const profile = useUserStore((s) => s.profile)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,16 +28,24 @@ export function CommentSection({
     if (!newComment.trim() || !currentUserId || !profile) return
 
     setIsSubmitting(true)
-    const success = await add(
-      newComment.trim(),
-      currentUserId,
-      profile.displayName,
-      profile.avatarUrl
-    )
-    if (success) {
-      setNewComment("")
+    setError(null)
+    try {
+      const success = await add(
+        newComment.trim(),
+        currentUserId,
+        profile.displayName,
+        profile.avatarUrl
+      )
+      if (success) {
+        setNewComment("")
+      } else {
+        setError("Failed to post comment. Please try again.")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to post comment.")
+    } finally {
+      setIsSubmitting(false)
     }
-    setIsSubmitting(false)
   }
 
   const handleDelete = async (commentId: string) => {
@@ -105,34 +114,42 @@ export function CommentSection({
 
       {/* Add Comment Form */}
       {currentUserId ? (
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={profile?.avatarUrl || undefined} />
-            <AvatarFallback className="text-xs">
-              {profile?.displayName?.charAt(0).toUpperCase() || "?"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 flex gap-2">
-            <Input
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Write a comment..."
-              className="h-8 text-sm"
-              disabled={isSubmitting}
-            />
-            <Button
-              type="submit"
-              size="icon"
-              className="h-8 w-8"
-              disabled={!newComment.trim() || isSubmitting}
-            >
-              {isSubmitting ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Send size={14} />
-              )}
-            </Button>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={profile?.avatarUrl || undefined} />
+              <AvatarFallback className="text-xs">
+                {profile?.displayName?.charAt(0).toUpperCase() || "?"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 flex gap-2">
+              <Input
+                value={newComment}
+                onChange={(e) => {
+                  setNewComment(e.target.value)
+                  if (error) setError(null)
+                }}
+                placeholder="Write a comment..."
+                className="h-8 text-sm"
+                disabled={isSubmitting}
+              />
+              <Button
+                type="submit"
+                size="icon"
+                className="h-8 w-8"
+                disabled={!newComment.trim() || isSubmitting}
+              >
+                {isSubmitting ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Send size={14} />
+                )}
+              </Button>
+            </div>
           </div>
+          {error && (
+            <p className="text-xs text-destructive ml-10">{error}</p>
+          )}
         </form>
       ) : (
         <p className="text-xs text-muted-foreground text-center">

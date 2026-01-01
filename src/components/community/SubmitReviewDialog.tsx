@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { auth } from "../../lib/firebase"
 import { useSessionStore } from "../../store/sessionStore"
 import { useUserStore } from "../../store/userStore"
 import { useCommunityReviews } from "../../hooks/useCommunityReviews"
@@ -84,9 +85,9 @@ export function SubmitReviewDialog({
 
     try {
       // Get user ID from Firebase auth
-      const { auth } = await import("../../lib/firebase")
       const userId = auth.currentUser?.uid
       if (!userId) {
+        setIsSubmitting(false)
         setError("Not authenticated")
         return
       }
@@ -101,7 +102,7 @@ export function SubmitReviewDialog({
         rating,
         reviewText: reviewText.trim(),
         vibeTags:
-          selectedTags.length > 0 ? selectedTags : selectedGame.vibeTags,
+          selectedTags.length > 0 ? selectedTags : selectedGame.vibeTags ?? [],
       })
 
       resetForm()

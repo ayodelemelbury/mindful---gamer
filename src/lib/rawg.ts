@@ -136,7 +136,7 @@ export function mapGenreToCategory(genres: RAWGGame["genres"]): string {
     "role-playing-games-rpg": "RPG",
     rpg: "RPG",
     shooter: "FPS",
-    action: "FPS",
+    action: "Action",
     strategy: "Strategy",
     sports: "Sports",
     platformer: "Platformer",

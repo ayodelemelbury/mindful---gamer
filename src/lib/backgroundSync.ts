@@ -104,7 +104,10 @@ export async function clearPendingSessions(): Promise<void> {
  */
 export async function getLastSyncTime(): Promise<number | null> {
   const { value } = await Preferences.get({ key: LAST_SYNC_KEY })
-  return value ? parseInt(value, 10) : null
+  if (!value) return null
+
+  const parsed = parseInt(value, 10)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 /**

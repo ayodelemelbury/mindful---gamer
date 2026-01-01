@@ -53,8 +53,8 @@ export function useUserProfile(
 
       // Check if current user is following this profile
       if (currentUserId && currentUserId !== userId) {
-        const following = await isFollowing(currentUserId, userId)
-        setIsFollowingUser(following)
+        const isFollowingResult = await isFollowing(currentUserId, userId)
+        setIsFollowingUser(isFollowingResult)
       }
 
       // Fetch followers and following

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { reportContent } from '../../lib/moderationService'
 import type { ReportReason, ContentType } from '../../types'
 import {
@@ -42,6 +42,16 @@ export function ReportDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (!open && timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    }
+  }, [open])
 
   const handleSubmit = async () => {
     if (!reporterId) return
@@ -58,7 +68,7 @@ export function ReportDialog({
         details,
       })
       setSuccess(true)
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         onOpenChange(false)
         setSuccess(false)
         setReason('spam')

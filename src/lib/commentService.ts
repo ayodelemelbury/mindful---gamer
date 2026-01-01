@@ -4,14 +4,14 @@
 import {
   doc,
   getDoc,
-  setDoc,
-  deleteDoc,
   collection,
   query,
   where,
   orderBy,
   getDocs,
   serverTimestamp,
+  runTransaction,
+  increment,
 } from "firebase/firestore"
 import { db } from "./firebase"
 import type { Comment } from "../types"
@@ -50,16 +50,16 @@ export interface AddCommentInput {
 
 export async function addComment(input: AddCommentInput): Promise<string> {
   const commentRef = doc(collection(db, "comments"))
-
-  await setDoc(commentRef, {
-    ...input,
-    status: "active",
-    createdAt: serverTimestamp(),
-  })
-
-  // Increment review's comment count
   const reviewRef = doc(db, "communityReviews", input.reviewId)
-  await increment_field(reviewRef, "commentCount", 1)
+
+  await runTransaction(db, async (transaction) => {
+    transaction.set(commentRef, {
+      ...input,
+      status: "active",
+      createdAt: serverTimestamp(),
+    })
+    transaction.update(reviewRef, { commentCount: increment(1) })
+  })
 
   return commentRef.id
 }
@@ -76,15 +76,10 @@ export async function deleteComment(
   const data = commentSnap.data()
   if (data.userId !== userId) throw new Error("Not authorized")
 
-  await deleteDoc(commentRef)
-
-  // Decrement review's comment count
   const reviewRef = doc(db, "communityReviews", data.reviewId)
-  await increment_field(reviewRef, "commentCount", -1)
-}
 
-// Helper to update doc field
-async function increment_field(docRef: ReturnType<typeof doc>, field: string, value: number) {
-  const { updateDoc, increment } = await import("firebase/firestore")
-  await updateDoc(docRef, { [field]: increment(value) }).catch(() => {})
+  await runTransaction(db, async (transaction) => {
+    transaction.delete(commentRef)
+    transaction.update(reviewRef, { commentCount: increment(-1) })
+  })
 }

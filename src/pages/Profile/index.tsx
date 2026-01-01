@@ -63,7 +63,7 @@ export function ProfilePage() {
         <TabsList>
           <TabsTrigger value="reviews" className="gap-2">
             <Star size={14} />
-            Reviews ({reviews.length})
+            Reviews {reviewsLoading ? "…" : `(${reviews.length})`}
           </TabsTrigger>
           <TabsTrigger value="followers" className="gap-2">
             <Users size={14} />

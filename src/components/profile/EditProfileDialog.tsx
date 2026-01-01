@@ -1,18 +1,18 @@
-import { useState } from 'react'
-import type { UserProfile } from '../../types'
-import { updateProfile } from '../../lib/profileService'
+import { useState, useEffect } from "react"
+import type { UserProfile } from "../../types"
+import { updateProfile } from "../../lib/profileService"
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Loader2 } from 'lucide-react'
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Loader2 } from "lucide-react"
 
 interface EditProfileDialogProps {
   open: boolean
@@ -32,9 +32,17 @@ export function EditProfileDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Sync local state when profile prop changes
+  useEffect(() => {
+    setDisplayName(profile.displayName)
+    setBio(profile.bio)
+    setError(null)
+    setIsSubmitting(false)
+  }, [profile.displayName, profile.bio])
+
   const handleSubmit = async () => {
     if (!displayName.trim()) {
-      setError('Display name is required')
+      setError("Display name is required")
       return
     }
 
@@ -49,7 +57,7 @@ export function EditProfileDialog({
       onOpenChange(false)
       onSuccess?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update profile')
+      setError(err instanceof Error ? err.message : "Failed to update profile")
     } finally {
       setIsSubmitting(false)
     }
@@ -103,7 +111,7 @@ export function EditProfileDialog({
                 Saving...
               </>
             ) : (
-              'Save Changes'
+              "Save Changes"
             )}
           </Button>
         </DialogFooter>

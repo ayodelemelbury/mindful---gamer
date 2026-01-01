@@ -31,6 +31,7 @@ import {
 } from "../../lib/rawg"
 
 const CATEGORIES = [
+  "Action",
   "RPG",
   "Casual",
   "FPS",
