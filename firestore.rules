@@ -24,7 +24,7 @@ service cloud.firestore {
       allow read: if true;
 
       // Users can create/update their own profile
-      allow create: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.get('isAdmin', false) == false;
       allow update: if isOwner(userId) &&
         // Prevent users from making themselves admin
         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isAdmin']));
@@ -50,7 +50,7 @@ service cloud.firestore {
     // Community Reviews
     match /communityReviews/{reviewId} {
       // Anyone can read active reviews
-      allow read: if resource.data.status == 'active' || isOwner(resource.data.userId) || isAdmin();
+      allow read: if (resource != null && resource.data.status == 'active') || isOwner(resource.data.userId) || isAdmin();
 
       // Authenticated users can create reviews
       allow create: if isAuthenticated() &&
@@ -58,7 +58,7 @@ service cloud.firestore {
         request.resource.data.status == 'active';
 
       // Users can update their own reviews (except status unless admin)
-      allow update: if isOwner(resource.data.userId) || isAdmin();
+      allow update: if isOwner(resource.data.userId) && (isAdmin() || request.resource.data.status == resource.data.status);
 
       // Users can delete their own reviews, admins can delete any
       allow delete: if isOwner(resource.data.userId) || isAdmin();
@@ -67,7 +67,7 @@ service cloud.firestore {
     // Comments
     match /comments/{commentId} {
       // Anyone can read active comments
-      allow read: if resource.data.status == 'active' || isOwner(resource.data.userId) || isAdmin();
+      allow read: if (resource != null && resource.data.status == 'active') || isOwner(resource.data.userId) || isAdmin();
 
       // Authenticated users can create comments
       allow create: if isAuthenticated() &&
@@ -100,9 +100,9 @@ service cloud.firestore {
       // Users can only read their own feed
       allow read: if isOwner(userId);
 
-      // System creates feed items (via Cloud Functions or server-side)
-      // For now, allow authenticated users to create for themselves
-      allow create: if isAuthenticated();
+      // System creates feed items (via Cloud Functions or server-side using Admin SDK)
+      // Only feed owner can create items in their own feed
+      allow create: if isOwner(userId);
 
       // Users can mark their own feed items as read
       allow update: if isOwner(userId);
