@@ -36,6 +36,7 @@ android/app/build/
 android/.gradle/
 android/app/src/main/assets/public/
 android/capacitor.settings.gradle
+android/app/.settings/
 
 # Firebase
 .firebase/
