@@ -112,6 +112,7 @@ export function useUserReviews(userId: string | null) {
 export function useReviewLike(reviewId: string, userId: string | null) {
   const [hasLiked, setHasLiked] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isToggling, setIsToggling] = useState(false)
 
   useEffect(() => {
     if (!userId) {
@@ -133,21 +134,31 @@ export function useReviewLike(reviewId: string, userId: string | null) {
     checkLike()
   }, [reviewId, userId])
 
-  const toggleLike = useCallback(async () => {
-    if (!userId) return
+  const toggleLike = useCallback(async (): Promise<boolean | null> => {
+    if (!userId) return null
+    if (isToggling) return null
+
+    const previousState = hasLiked
+    
+    setHasLiked(!previousState)
+    setIsToggling(true)
 
     try {
-      if (hasLiked) {
+      if (previousState) {
         await unlikeReview(reviewId, userId)
-        setHasLiked(false)
+        return false
       } else {
         await likeReview(reviewId, userId)
-        setHasLiked(true)
+        return true
       }
-    } catch {
-      // Ignore
+    } catch (err) {
+      setHasLiked(previousState)
+      console.error('Failed to toggle like:', err)
+      return null
+    } finally {
+      setIsToggling(false)
     }
-  }, [reviewId, userId, hasLiked])
+  }, [reviewId, userId, hasLiked, isToggling])
 
   return { hasLiked, isLoading, toggleLike }
 }
