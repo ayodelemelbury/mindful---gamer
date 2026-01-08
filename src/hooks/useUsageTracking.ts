@@ -1,31 +1,31 @@
-/**
- * useUsageTracking Hook
- *
- * React hook for managing Android usage tracking state,
- * permissions, and auto-detected game sessions.
- */
-
 import { useState, useEffect, useCallback, useRef } from "react"
 import { App } from "@capacitor/app"
 import {
   isNativeAndroid,
   checkUsagePermission,
   requestUsagePermission,
-  getAutoTrackedSessions,
+  getAutoTrackedSessionsHybrid,
   getUnmappedGames,
   isGameInForeground,
+  getUntrackedGamesPlaying,
   type AutoTrackedSession,
   type PermissionStatus,
   type UsageStat,
+  type UntrackedGame,
 } from "@/lib/usageTracking"
 import {
   clearPendingSessions,
   getLastSyncTime,
   registerBackgroundSync,
 } from "@/lib/backgroundSync"
-import { saveBackgroundConfig } from "@/lib/backgroundConfig"
+import { saveBackgroundConfig, initBackgroundConfigSync } from "@/lib/backgroundConfig"
 import { useUserStore } from "@/store/userStore"
 import { useSessionStore } from "@/store/sessionStore"
+import { getGameName } from "@/lib/gamePackageMap"
+
+const MIN_SESSION_DELTA_MINUTES = 1
+const FOREGROUND_POLL_INTERVAL_MS = 5000
+const MAX_RETRY_ATTEMPTS = 3
 
 export interface UseUsageTrackingResult {
   /** Whether auto-tracking is available (Android native) */
@@ -36,6 +36,8 @@ export interface UseUsageTrackingResult {
   autoSessions: AutoTrackedSession[]
   /** Games detected but not in our mapping */
   unmappedGames: UsageStat[]
+  /** Games being played that are NOT in user's library */
+  untrackedGames: UntrackedGame[]
   /** Loading state */
   isLoading: boolean
   /** Error message if any */
@@ -45,6 +47,7 @@ export interface UseUsageTrackingResult {
   /** Currently active foreground game (real-time) */
   currentForegroundGame: {
     isPlaying: boolean
+    isInLibrary: boolean
     packageName: string | null
     gameName: string | null
   } | null
@@ -66,11 +69,13 @@ export function useUsageTracking(): UseUsageTrackingResult {
     useState<PermissionStatus>("unavailable")
   const [autoSessions, setAutoSessions] = useState<AutoTrackedSession[]>([])
   const [unmappedGames, setUnmappedGames] = useState<UsageStat[]>([])
+  const [untrackedGames, setUntrackedGames] = useState<UntrackedGame[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
   const [currentForegroundGame, setCurrentForegroundGame] = useState<{
     isPlaying: boolean
+    isInLibrary: boolean
     packageName: string | null
     gameName: string | null
   } | null>(null)
@@ -78,38 +83,40 @@ export function useUsageTracking(): UseUsageTrackingResult {
   const awaitingPermission = useRef(false)
   const permissionStatusRef = useRef<PermissionStatus>("unavailable")
   const pollingIntervalRef = useRef<number | null>(null)
-
-  // Minimum session delta to sync (prevents micro-updates)
-  const MIN_SESSION_DELTA_MINUTES = 2
+  const isRefreshingRef = useRef(false)
 
   const { settings, updateSettings } = useUserStore()
-  const { addSession, games: userLibraryGames } = useSessionStore()
+  const { addSession, games: userLibraryGames, removeSessionsByGameName } = useSessionStore()
 
-  // Memoize to prevent unnecessary re-renders
   const userPackageMappings = settings?.customPackageMappings ?? {}
   const ignoredPackages = settings?.ignoredPackages ?? []
+  const autoTrackingEnabled = settings?.autoTrackingEnabled ?? true
 
   const checkCurrentForegroundGame = useCallback(async () => {
-    if (!isAvailable || permissionStatus !== "granted") return
+    if (!isAvailable || permissionStatus !== "granted" || !autoTrackingEnabled) return
 
     try {
       const result = await isGameInForeground(userPackageMappings, userLibraryGames)
       setCurrentForegroundGame(result)
+
+      // Also check for untracked games
+      const untracked = await getUntrackedGamesPlaying(userLibraryGames, ignoredPackages)
+      setUntrackedGames(untracked)
     } catch (error) {
       console.error("Error checking foreground game:", error)
       setCurrentForegroundGame(null)
     }
-  }, [isAvailable, permissionStatus, userPackageMappings, userLibraryGames])
+  }, [isAvailable, permissionStatus, autoTrackingEnabled, userPackageMappings, userLibraryGames, ignoredPackages])
 
   const startForegroundPolling = useCallback(() => {
-    if (!isAvailable || permissionStatus !== "granted") return
+    if (!isAvailable || permissionStatus !== "granted" || !autoTrackingEnabled) return
 
     checkCurrentForegroundGame()
 
     pollingIntervalRef.current = window.setInterval(() => {
       checkCurrentForegroundGame()
-    }, 5000)
-  }, [isAvailable, permissionStatus, checkCurrentForegroundGame])
+    }, FOREGROUND_POLL_INTERVAL_MS)
+  }, [isAvailable, permissionStatus, autoTrackingEnabled, checkCurrentForegroundGame])
 
   const stopForegroundPolling = useCallback(() => {
     if (pollingIntervalRef.current) {
@@ -127,6 +134,7 @@ export function useUsageTracking(): UseUsageTrackingResult {
       permissionStatusRef.current = status
       if (status === "granted") {
         registerBackgroundSync()
+        initBackgroundConfigSync()
         startForegroundPolling()
       }
     })
@@ -146,6 +154,7 @@ export function useUsageTracking(): UseUsageTrackingResult {
             permissionStatusRef.current = status
             awaitingPermission.current = false
             registerBackgroundSync()
+            initBackgroundConfigSync()
             refreshSessions()
             startForegroundPolling()
           }
@@ -168,8 +177,10 @@ export function useUsageTracking(): UseUsageTrackingResult {
 
   // Refresh auto-tracked sessions and auto-sync new ones
   const refreshSessions = useCallback(async () => {
-    if (!isAvailable || permissionStatus !== "granted") return
-
+    if (!isAvailable || permissionStatus !== "granted" || !autoTrackingEnabled) return
+    if (isRefreshingRef.current) return
+    
+    isRefreshingRef.current = true
     setIsLoading(true)
     setError(null)
 
@@ -178,7 +189,7 @@ export function useUsageTracking(): UseUsageTrackingResult {
       const startOfDay = new Date(now)
       startOfDay.setHours(0, 0, 0, 0)
 
-      const sessions = await getAutoTrackedSessions(
+      const sessions = await getAutoTrackedSessionsHybrid(
         userPackageMappings,
         userLibraryGames,
         { start: startOfDay.getTime(), end: now.getTime() },
@@ -220,6 +231,9 @@ export function useUsageTracking(): UseUsageTrackingResult {
           autoTrackingLastSync: Date.now(),
           autoTrackingDailySynced: newDailySyncedMap,
         })
+
+        // Only clear pending sessions after successful sync
+        clearPendingSessions()
       }
 
       setAutoSessions(
@@ -230,8 +244,6 @@ export function useUsageTracking(): UseUsageTrackingResult {
       )
       setLastSyncTime(new Date())
       setRetryCount(0)
-
-      clearPendingSessions()
 
       const unmapped = await getUnmappedGames(
         userPackageMappings,
@@ -244,7 +256,7 @@ export function useUsageTracking(): UseUsageTrackingResult {
       setError(
         err instanceof Error ? err.message : "Failed to fetch usage data"
       )
-      if (retryCount < 3) {
+      if (retryCount < MAX_RETRY_ATTEMPTS) {
         const delay = Math.pow(2, retryCount) * 1000
         setTimeout(() => {
           setRetryCount((c) => c + 1)
@@ -253,10 +265,12 @@ export function useUsageTracking(): UseUsageTrackingResult {
       }
     } finally {
       setIsLoading(false)
+      isRefreshingRef.current = false
     }
   }, [
     isAvailable,
     permissionStatus,
+    autoTrackingEnabled,
     userPackageMappings,
     userLibraryGames,
     ignoredPackages,
@@ -303,7 +317,7 @@ export function useUsageTracking(): UseUsageTrackingResult {
     clearPendingSessions()
   }, [autoSessions, addSession])
 
-  // Ignore a package (mark as not a game)
+  // Ignore a package (mark as not a game) and clean up existing sessions
   const ignorePackage = useCallback(
     (packageName: string) => {
       const currentIgnored = settings?.ignoredPackages ?? []
@@ -311,11 +325,21 @@ export function useUsageTracking(): UseUsageTrackingResult {
         ignoredPackages: [...currentIgnored, packageName],
       })
 
+      // Remove sessions for this package
+      const gameName = getGameName(
+        packageName,
+        userPackageMappings,
+        userLibraryGames
+      )
+      if (gameName) {
+        removeSessionsByGameName(gameName)
+      }
+
       setUnmappedGames((prev) =>
         prev.filter((g) => g.packageName !== packageName)
       )
     },
-    [settings, updateSettings]
+    [settings, updateSettings, userPackageMappings, userLibraryGames, removeSessionsByGameName]
   )
 
   // Auto-refresh when permission is granted
@@ -341,10 +365,12 @@ export function useUsageTracking(): UseUsageTrackingResult {
     ignoredPackages,
   ])
 
-  // Cleanup polling on unmount
   useEffect(() => {
     return () => {
-      stopForegroundPolling()
+      if (pollingIntervalRef.current) {
+        window.clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
     }
   }, [])
 
@@ -353,6 +379,7 @@ export function useUsageTracking(): UseUsageTrackingResult {
     permissionStatus,
     autoSessions,
     unmappedGames,
+    untrackedGames,
     isLoading,
     error,
     lastSyncTime,

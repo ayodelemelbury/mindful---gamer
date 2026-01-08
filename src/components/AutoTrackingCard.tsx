@@ -66,6 +66,11 @@ function SessionItem({ session }: { session: AutoTrackedSession }) {
           <span>•</span>
           <span>{formatDistanceToNow(session.detectedAt)}</span>
         </div>
+        {session.packageName && session.gameName !== session.packageName && (
+          <p className="text-xs text-muted-foreground/70 font-mono truncate mt-0.5">
+            {session.packageName}
+          </p>
+        )}
       </div>
       <Badge variant="secondary" className="ml-2 shrink-0">
         <Check className="h-3 w-3 mr-1" />
@@ -174,10 +179,10 @@ function AutoTrackingCardInner() {
               <Smartphone className="h-8 w-8 text-muted-foreground" />
             </div>
             <p className="text-sm text-muted-foreground">
-              No game sessions detected today
+              No sessions for your library games today
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Play some games and they'll appear here automatically
+              Add games from your device to start auto-tracking
             </p>
           </div>
         )}
