@@ -45,6 +45,11 @@
   --destructive-border: oklch(0.43 0.24 29.2);
 }
 
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
 body {
   @apply bg-background text-foreground antialiased;
   font-family: var(--font-sans), system-ui, sans-serif;

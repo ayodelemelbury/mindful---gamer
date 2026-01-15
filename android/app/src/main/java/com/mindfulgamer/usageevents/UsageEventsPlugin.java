@@ -4,6 +4,8 @@ import android.app.AppOpsManager;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Process;
 
@@ -186,5 +188,45 @@ public class UsageEventsPlugin extends Plugin {
         } catch (Exception e) {
             call.reject("Error getting foreground app: " + e.getMessage());
         }
+    }
+
+    @PluginMethod
+    public void getAppDisplayNames(PluginCall call) {
+        Context ctx = getContext();
+        if (ctx == null) {
+            call.reject("Context not available");
+            return;
+        }
+
+        JSArray packageNames = call.getArray("packageNames");
+        if (packageNames == null) {
+            call.reject("packageNames array is required");
+            return;
+        }
+
+        PackageManager pm = ctx.getPackageManager();
+        JSArray mappings = new JSArray();
+
+        for (int i = 0; i < packageNames.length(); i++) {
+            try {
+                String packageName = packageNames.getString(i);
+                ApplicationInfo appInfo = pm.getApplicationInfo(packageName, 0);
+                CharSequence label = pm.getApplicationLabel(appInfo);
+                
+                JSObject mapping = new JSObject();
+                mapping.put("packageName", packageName);
+                mapping.put("displayName", label.toString());
+                mapping.put("category", appInfo.category);
+                mappings.put(mapping);
+            } catch (PackageManager.NameNotFoundException e) {
+                // App not installed, skip
+            } catch (Exception e) {
+                // Skip errors for individual packages
+            }
+        }
+
+        JSObject result = new JSObject();
+        result.put("apps", mappings);
+        call.resolve(result);
     }
 }

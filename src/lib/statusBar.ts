@@ -26,6 +26,7 @@ export async function initializeStatusBar(): Promise<void> {
 
     // Use dark content (dark icons) on light background
     await StatusBar.setStyle({ style: Style.Light });
+    await StatusBar.show();
   } catch (error) {
     console.error('Error initializing status bar:', error);
   }

@@ -49,8 +49,8 @@ service cloud.firestore {
 
     // Community Reviews
     match /communityReviews/{reviewId} {
-      // Anyone can read active reviews
-      allow read: if (resource != null && resource.data.status == 'active') || isOwner(resource.data.userId) || isAdmin();
+      // Anyone can read active reviews, owners can read their own, admins can read any
+      allow read: if isAdmin() || (resource != null && (resource.data.status == 'active' || isOwner(resource.data.userId)));
 
       // Authenticated users can create reviews
       allow create: if isAuthenticated() &&
@@ -132,6 +132,27 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId);
       allow write: if isOwner(userId);
+    }
+
+    // Package Mappings (community-sourced game detection)
+    match /packageMappings/{mappingId} {
+      allow read: if resource.data.status == 'verified' || isAuthenticated();
+
+      allow create: if isAuthenticated() &&
+        request.resource.data.contributorId == request.auth.uid &&
+        request.resource.data.voteCount == 1 &&
+        request.resource.data.reportCount == 0;
+
+      allow update: if isAuthenticated() &&
+        request.resource.data.packageName == resource.data.packageName &&
+        request.resource.data.gameName == resource.data.gameName;
+    }
+
+    // Package Mapping Votes
+    match /packageMappingVotes/{voteId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
     }
   }
 }

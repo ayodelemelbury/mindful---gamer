@@ -29,9 +29,20 @@ export interface CurrentForegroundResult {
   timestamp: number | null
 }
 
+export interface AppDisplayInfo {
+  packageName: string
+  displayName: string
+  category: number
+}
+
+export interface GetAppDisplayNamesResult {
+  apps: AppDisplayInfo[]
+}
+
 export interface UsageEventsPluginInterface {
   queryEvents(options: QueryEventsOptions): Promise<QueryEventsResult>
   getCurrentForegroundApp(): Promise<CurrentForegroundResult>
+  getAppDisplayNames(options: { packageNames: string[] }): Promise<GetAppDisplayNamesResult>
 }
 
 export const UsageEventsPlugin = registerPlugin<UsageEventsPluginInterface>(

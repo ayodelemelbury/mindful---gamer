@@ -1,5 +1,6 @@
 import { Preferences } from "@capacitor/preferences"
 import type { Game } from "../types"
+import { isNativeAndroid } from "./usageTracking"
 
 const BACKGROUND_CONFIG_KEY = "mindful-gamer-background-config"
 
@@ -7,6 +8,49 @@ export interface BackgroundConfig {
   userMappings: Record<string, string>
   userLibraryGames: Game[]
   ignoredPackages: string[]
+}
+
+let subscriptionInitialized = false
+
+export function initBackgroundConfigSync(): void {
+  if (subscriptionInitialized || !isNativeAndroid()) return
+  subscriptionInitialized = true
+
+  Promise.all([
+    import("@/store/sessionStore"),
+    import("@/store/userStore"),
+  ]).then(([{ useSessionStore }, { useUserStore }]) => {
+    let prevGamesCount = useSessionStore.getState().games.length
+    let prevMappings = useUserStore.getState().settings?.customPackageMappings
+    let prevIgnored = useUserStore.getState().settings?.ignoredPackages
+
+    const saveCurrentConfig = () => {
+      const games = useSessionStore.getState().games
+      const settings = useUserStore.getState().settings
+      saveBackgroundConfig({
+        userMappings: settings?.customPackageMappings ?? {},
+        userLibraryGames: games,
+        ignoredPackages: settings?.ignoredPackages ?? [],
+      })
+    }
+
+    useSessionStore.subscribe((state) => {
+      if (state.games.length !== prevGamesCount) {
+        prevGamesCount = state.games.length
+        saveCurrentConfig()
+      }
+    })
+
+    useUserStore.subscribe((state) => {
+      const mappings = state.settings?.customPackageMappings
+      const ignored = state.settings?.ignoredPackages
+      if (mappings !== prevMappings || ignored !== prevIgnored) {
+        prevMappings = mappings
+        prevIgnored = ignored
+        saveCurrentConfig()
+      }
+    })
+  })
 }
 
 /**

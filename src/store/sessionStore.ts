@@ -37,6 +37,7 @@ interface SessionState {
   incrementToday: (minutes: number) => void
   addGame: (game: Omit<Game, "id" | "totalTime" | "rating">) => void
   removeGame: (gameId: string) => void
+  removeSessionsByGameName: (gameName: string) => void
   updateGameTime: (gameId: string, minutes: number) => void
   updateGameRating: (gameId: string, rating: number) => void
   startSession: (gameId: string, gameName: string) => Promise<void>
@@ -161,6 +162,38 @@ export const useSessionStore = create<SessionState>()(
         })),
       removeGame: (gameId) =>
         set((state) => ({ games: state.games.filter((g) => g.id !== gameId) })),
+      removeSessionsByGameName: (gameName) =>
+        set((state) => {
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const todayStart = today.getTime()
+          const weekStart = todayStart - 6 * 24 * 60 * 60 * 1000
+
+          const sessionsToRemove = state.recentSessions.filter(
+            (s) => s.gameName === gameName
+          )
+
+          // Calculate time to subtract
+          const todayRemoved = sessionsToRemove
+            .filter((s) => s.createdAt >= todayStart)
+            .reduce((sum, s) => sum + s.duration, 0)
+          const weekRemoved = sessionsToRemove
+            .filter((s) => s.createdAt >= weekStart)
+            .reduce((sum, s) => sum + s.duration, 0)
+
+          // Update budget store
+          if (todayRemoved > 0) {
+            useBudgetStore.getState().adjustDailyUsage(-todayRemoved)
+          }
+
+          return {
+            recentSessions: state.recentSessions.filter(
+              (s) => s.gameName !== gameName
+            ),
+            todayTotal: Math.max(0, state.todayTotal - todayRemoved),
+            weekTotal: Math.max(0, state.weekTotal - weekRemoved),
+          }
+        }),
       updateGameTime: (gameId, minutes) =>
         set((state) => ({
           games: state.games.map((g) =>

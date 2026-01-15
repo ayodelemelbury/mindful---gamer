@@ -59,6 +59,7 @@ interface UserState {
   updateSettings: (updates: Partial<UserSettings>) => void
   syncToCloud: (userId: string) => Promise<void>
   fetchFromCloud: (userId: string) => Promise<void>
+  updateStreak: (withinBudget: boolean) => void
   clearUserData: () => void
 }
 
@@ -220,6 +221,17 @@ export const useUserStore = create<UserState>()(
               ignoredPackages:
                 data.userMappings?.ignoredPackages ??
                 currentSettings.ignoredPackages,
+
+              // Restore gamification settings
+              currentStreak:
+                data.settings?.currentStreak ?? currentSettings.currentStreak,
+              longestStreak:
+                data.settings?.longestStreak ?? currentSettings.longestStreak,
+              lastBalancedDate:
+                data.settings?.lastBalancedDate ??
+                currentSettings.lastBalancedDate,
+              achievements:
+                data.settings?.achievements ?? currentSettings.achievements,
             },
           })
 
@@ -239,6 +251,30 @@ export const useUserStore = create<UserState>()(
           console.error("[UserStore] fetchFromCloud failed:", error)
         }
       },
+
+      updateStreak: (withinBudget: boolean) =>
+        set((state) => {
+          const { settings } = state
+
+          if (withinBudget) {
+            const newStreak = settings.currentStreak + 1
+            return {
+              settings: {
+                ...settings,
+                currentStreak: newStreak,
+                longestStreak: Math.max(newStreak, settings.longestStreak),
+                lastBalancedDate: new Date().toISOString(),
+              },
+            }
+          } else {
+            return {
+              settings: {
+                ...settings,
+                currentStreak: 0,
+              },
+            }
+          }
+        }),
 
       clearUserData: () => {
         useSessionStore.setState({

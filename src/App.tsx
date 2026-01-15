@@ -27,6 +27,9 @@ const SettingsPage = lazy(() =>
 const ProfilePage = lazy(() =>
   import("./pages/Profile").then((m) => ({ default: m.ProfilePage }))
 )
+const GameDetailPage = lazy(() =>
+  import("./pages/GameDetail").then((m) => ({ default: m.GameDetailPage }))
+)
 const AuthPage = lazy(() =>
   import("./pages/Auth").then((m) => ({ default: m.AuthPage }))
 )
@@ -59,6 +62,7 @@ export default function App() {
                   <Route path="/insights" element={<InsightsPage />} />
                   <Route path="/community" element={<CommunityPage />} />
                   <Route path="/profile/:userId" element={<ProfilePage />} />
+                  <Route path="/game/:gameId" element={<GameDetailPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                 </Route>
               </Routes>

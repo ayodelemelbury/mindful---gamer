@@ -22,8 +22,8 @@ export function BottomNav() {
         </div>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border px-4 py-2 md:hidden z-20">
-        <div className="mx-auto max-w-md flex justify-around">
+      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border px-4 py-2 pb-[env(safe-area-inset-bottom,8px)] md:hidden z-20">
+        <div className="flex justify-around max-w-sm mx-auto">
           {navItems.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}

@@ -245,3 +245,42 @@ export async function getFollowingIds(userId: string): Promise<string[]> {
   const snapshot = await getDocs(q)
   return snapshot.docs.map((doc) => doc.data().followingId)
 }
+
+
+export async function getSuggestedUsers(
+  currentUserId: string,
+  maxResults = 5
+): Promise<UserProfile[]> {
+  // Get users the current user already follows
+  const followingIds = await getFollowingIds(currentUserId)
+  const excludeIds = new Set([currentUserId, ...followingIds])
+
+  // Get active users (those with reviews, ordered by review count)
+  const q = query(
+    collection(db, "userProfiles"),
+    orderBy("reviewCount", "desc"),
+    limit(maxResults + excludeIds.size)
+  )
+  const snapshot = await getDocs(q)
+
+  const profiles: UserProfile[] = []
+  for (const doc of snapshot.docs) {
+    if (profiles.length >= maxResults) break
+    if (excludeIds.has(doc.id)) continue
+
+    const data = doc.data()
+    profiles.push({
+      id: doc.id,
+      displayName: data.displayName || "Anonymous",
+      avatarUrl: data.avatarUrl || null,
+      bio: data.bio || "",
+      followerCount: data.followerCount || 0,
+      followingCount: data.followingCount || 0,
+      reviewCount: data.reviewCount || 0,
+      isAdmin: data.isAdmin || false,
+      createdAt: data.createdAt?.toDate() || new Date(),
+    })
+  }
+
+  return profiles
+}
