@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(tree:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run lint)",
+      "Skill(gastown:gastown)",
+      "Bash(gt --version)",
+      "Bash(bd --version)",
+      "Bash(go install:*)",
+      "Bash(gt doctor:*)",
+      "Bash(bd doctor:*)",
+      "Bash(gt init:*)",
+      "Bash(gt install:*)",
+      "Bash(gt git-init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(gt rig add:*)",
+      "Bash(gt rig list:*)",
+      "Bash(gt status:*)",
+      "Bash(gt refinery start:*)",
+      "Bash(bd create:*)",
+      "Bash(bd init:*)",
+      "Bash(gt sling:*)",
+      "Bash(bd sync:*)",
+      "Bash(ls:*)",
+      "Skill(frontend-design)",
+      "Bash(npm run dev)",
+      "Bash(unzip:*)",
+      "Bash(fold:*)",
+      "Bash(bd stats:*)"
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "120871303126",
+    "project_id": "mindful-gamer",
+    "storage_bucket": "mindful-gamer.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:120871303126:android:20f16c9f716943f9ba5677",
+        "android_client_info": {
+          "package_name": "com.mindfulgamer.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "120871303126-u5u7uhp71n49vt0b0122miduikakdl4e.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mindfulgamer.app",
+            "certificate_hash": "285a798fd8e0478299faf055d2b350d2e43537a2"
+          }
+        },
+        {
+          "client_id": "120871303126-0o7l85njla4hh36c411l54aj3bsmj12j.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCano0QBOJZ91lsMjU7CRGtYtdkm59mi-c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "120871303126-0o7l85njla4hh36c411l54aj3bsmj12j.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
