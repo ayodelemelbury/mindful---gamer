@@ -4,6 +4,7 @@ import { AuthProvider } from "./contexts/AuthContext"
 import { ProtectedRoute } from "./components/auth/ProtectedRoute"
 import { AppShell } from "./components/layout/AppShell"
 import { ErrorBoundary } from "./components/ErrorBoundary"
+import { ThemeProvider } from "./components/ThemeProvider"
 import { useAndroidBackButton } from "./hooks/useAndroidBackButton"
 
 // Wrapper component to use the back button hook within Router context
@@ -45,31 +46,33 @@ function PageLoader() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <BrowserRouter>
-          <BackButtonHandler>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/auth" element={<AuthPage />} />
-                <Route
-                  element={
-                    <ProtectedRoute>
-                      <AppShell />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route path="/" element={<HomePage />} />
-                  <Route path="/insights" element={<InsightsPage />} />
-                  <Route path="/community" element={<CommunityPage />} />
-                  <Route path="/profile/:userId" element={<ProfilePage />} />
-                  <Route path="/game/:gameId" element={<GameDetailPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                </Route>
-              </Routes>
-            </Suspense>
-          </BackButtonHandler>
-        </BrowserRouter>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <BackButtonHandler>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/auth" element={<AuthPage />} />
+                  <Route
+                    element={
+                      <ProtectedRoute>
+                        <AppShell />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/insights" element={<InsightsPage />} />
+                    <Route path="/community" element={<CommunityPage />} />
+                    <Route path="/profile/:userId" element={<ProfilePage />} />
+                    <Route path="/game/:gameId" element={<GameDetailPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                  </Route>
+                </Routes>
+              </Suspense>
+            </BackButtonHandler>
+          </BrowserRouter>
+        </AuthProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   )
 }

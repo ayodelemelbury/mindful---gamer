@@ -45,6 +45,8 @@ interface SessionState {
   updateLastBudgetMinute: (minute: number) => void
   getElapsedSeconds: () => number
   enrichGame: (gameId: string) => Promise<void>
+  clearSessionHistory: () => void
+  clearAllData: () => void
 }
 
 export const useSessionStore = create<SessionState>()(
@@ -316,6 +318,49 @@ export const useSessionStore = create<SessionState>()(
         } catch (error) {
           console.warn(`[Enrich] Failed to enrich ${game.name}:`, error)
         }
+      },
+      clearSessionHistory: () => {
+        // Reset budget store daily/weekly usage
+        useBudgetStore.setState((state) => ({
+          dailyBudget: { ...state.dailyBudget, current: 0 },
+          weeklyBudget: { ...state.weeklyBudget, current: 0 },
+        }))
+
+        // Clear sessions but keep games library
+        set(() => ({
+          recentSessions: [],
+          todayTotal: 0,
+          weekTotal: 0,
+          activeSession: {
+            isPlaying: false,
+            sessionStartTime: null,
+            selectedGameId: null,
+            selectedGameName: null,
+            lastBudgetMinute: 0,
+          },
+        }))
+      },
+      clearAllData: () => {
+        // Reset budget store
+        useBudgetStore.setState((state) => ({
+          dailyBudget: { ...state.dailyBudget, current: 0 },
+          weeklyBudget: { ...state.weeklyBudget, current: 0 },
+        }))
+
+        // Clear everything including games library
+        set(() => ({
+          recentSessions: [],
+          games: [],
+          todayTotal: 0,
+          weekTotal: 0,
+          activeSession: {
+            isPlaying: false,
+            sessionStartTime: null,
+            selectedGameId: null,
+            selectedGameName: null,
+            lastBudgetMinute: 0,
+          },
+        }))
       },
     }),
     { name: "mindful-gamer-sessions" }
