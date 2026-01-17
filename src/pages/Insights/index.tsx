@@ -4,6 +4,7 @@ import { CategoryBreakdownChart } from "../../components/charts/CategoryBreakdow
 import { WeeklyTrendChart } from "../../components/charts/WeeklyTrendChart"
 import { TimeOfDayChart } from "../../components/charts/TimeOfDayChart"
 import { SessionDurationChart } from "../../components/charts/SessionDurationChart"
+import { ChartErrorBoundary } from "../../components/charts/ChartErrorBoundary"
 import { useSessionStore } from "../../store/sessionStore"
 import { useBudgetStore } from "../../store/budgetStore"
 import { formatDuration } from "@/lib/formatDuration"
@@ -141,18 +142,28 @@ export function InsightsPage() {
     const setMidnight = (d: Date) => d.setHours(0, 0, 0, 0)
 
     if (timePeriod === "this-week") {
-      // Monday based week
-      const day = now.getDay() || 7
-      if (day !== 1) startCurrent.setHours(-24 * (day - 1))
-      else startCurrent = now
+      // Monday based week - get days since Monday (0 = Monday, 6 = Sunday)
+      const dayOfWeek = now.getDay()
+      const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+      startCurrent = new Date(now)
+      startCurrent.setDate(now.getDate() - daysSinceMonday)
 
       startPrev = new Date(startCurrent)
       startPrev.setDate(startPrev.getDate() - 7)
       endPrev = new Date(startCurrent)
     } else if (timePeriod === "last-week") {
-      const day = now.getDay() || 7
-      startCurrent.setDate(now.getDate() - day - 6)
-      endCurrent.setDate(now.getDate() - day + 1)
+      // Last week: Monday to Sunday of previous week
+      const dayOfWeek = now.getDay()
+      const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+
+      // Start of this week (Monday)
+      const thisWeekStart = new Date(now)
+      thisWeekStart.setDate(now.getDate() - daysSinceMonday)
+
+      // Last week is 7 days before this week's start
+      startCurrent = new Date(thisWeekStart)
+      startCurrent.setDate(thisWeekStart.getDate() - 7)
+      endCurrent = new Date(thisWeekStart)
 
       startPrev = new Date(startCurrent)
       startPrev.setDate(startPrev.getDate() - 7)
@@ -367,16 +378,8 @@ export function InsightsPage() {
               onClick={() => setActiveTab(tab)}
               variant={activeTab === tab ? "default" : "secondary"}
               size="sm"
-              className="relative overflow-hidden"
             >
-              {activeTab === tab && (
-                <motion.div
-                  className="absolute inset-0 bg-primary"
-                  layoutId="activeTab"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
-              <span className="relative z-10">{tab}</span>
+              {tab}
             </Button>
           </motion.div>
         ))}
@@ -401,14 +404,18 @@ export function InsightsPage() {
                     initial="rest"
                     whileHover="hover"
                   >
-                    <TimeByGameChart />
+                    <ChartErrorBoundary fallbackMessage="Unable to load time by game chart">
+                      <TimeByGameChart />
+                    </ChartErrorBoundary>
                   </motion.div>
                   <motion.div
                     variants={cardHoverVariants}
                     initial="rest"
                     whileHover="hover"
                   >
-                    <CategoryBreakdownChart />
+                    <ChartErrorBoundary fallbackMessage="Unable to load category breakdown">
+                      <CategoryBreakdownChart />
+                    </ChartErrorBoundary>
                   </motion.div>
                 </>
               ) : (
@@ -455,14 +462,18 @@ export function InsightsPage() {
                   initial="rest"
                   whileHover="hover"
                 >
-                  <TimeOfDayChart />
+                  <ChartErrorBoundary fallbackMessage="Unable to load time of day chart">
+                    <TimeOfDayChart />
+                  </ChartErrorBoundary>
                 </motion.div>
                 <motion.div
                   variants={cardHoverVariants}
                   initial="rest"
                   whileHover="hover"
                 >
-                  <SessionDurationChart />
+                  <ChartErrorBoundary fallbackMessage="Unable to load session duration chart">
+                    <SessionDurationChart />
+                  </ChartErrorBoundary>
                 </motion.div>
               </div>
             )}
@@ -482,7 +493,9 @@ export function InsightsPage() {
               initial="rest"
               whileHover="hover"
             >
-              <WeeklyTrendChart />
+              <ChartErrorBoundary fallbackMessage="Unable to load weekly trend chart">
+                <WeeklyTrendChart />
+              </ChartErrorBoundary>
             </motion.div>
           </motion.div>
         )}

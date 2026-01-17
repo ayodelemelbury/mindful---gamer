@@ -179,7 +179,7 @@ export function useUsageTracking(): UseUsageTrackingResult {
   const refreshSessions = useCallback(async () => {
     if (!isAvailable || permissionStatus !== "granted" || !autoTrackingEnabled) return
     if (isRefreshingRef.current) return
-    
+
     isRefreshingRef.current = true
     setIsLoading(true)
     setError(null)
@@ -189,16 +189,21 @@ export function useUsageTracking(): UseUsageTrackingResult {
       const startOfDay = new Date(now)
       startOfDay.setHours(0, 0, 0, 0)
 
+      // Get fresh settings directly from store to avoid stale closure values
+      // This fixes duplicate sessions when app resumes - the appStateChange listener
+      // captures an old refreshSessions function, so we must read current state here
+      const currentSettings = useUserStore.getState().settings
+
       const sessions = await getAutoTrackedSessionsHybrid(
-        userPackageMappings,
+        currentSettings?.customPackageMappings ?? {},
         userLibraryGames,
         { start: startOfDay.getTime(), end: now.getTime() },
-        ignoredPackages
+        currentSettings?.ignoredPackages ?? []
       )
 
-      let dailySyncedMap = settings?.autoTrackingDailySynced || {}
-      const lastSyncDate = settings?.autoTrackingLastSync
-        ? new Date(settings.autoTrackingLastSync)
+      let dailySyncedMap = currentSettings?.autoTrackingDailySynced || {}
+      const lastSyncDate = currentSettings?.autoTrackingLastSync
+        ? new Date(currentSettings.autoTrackingLastSync)
         : null
 
       if (
@@ -246,11 +251,11 @@ export function useUsageTracking(): UseUsageTrackingResult {
       setRetryCount(0)
 
       const unmapped = await getUnmappedGames(
-        userPackageMappings,
+        currentSettings?.customPackageMappings ?? {},
         userLibraryGames
       )
       setUnmappedGames(
-        unmapped.filter((g) => !ignoredPackages.includes(g.packageName))
+        unmapped.filter((g) => !(currentSettings?.ignoredPackages ?? []).includes(g.packageName))
       )
     } catch (err) {
       setError(
@@ -271,13 +276,10 @@ export function useUsageTracking(): UseUsageTrackingResult {
     isAvailable,
     permissionStatus,
     autoTrackingEnabled,
-    userPackageMappings,
     userLibraryGames,
-    ignoredPackages,
-    settings?.autoTrackingLastSync,
-    settings?.autoTrackingDailySynced,
     addSession,
     updateSettings,
+    retryCount,
   ])
 
   // Request permission handler

@@ -1,8 +1,13 @@
-# Mindful Gamer Planner
+# Mindful Gamer
 
 A mindful gaming wellness app that helps gamers track, balance, and improve their gaming habits through data-driven insights and community support.
 
 ![Mindful Gamer](./public/icon-512.png)
+
+## Platforms
+
+- **🌐 Web App** - Progressive Web App accessible from any browser
+- **🤖 Android App** - Native Android app built with Capacitor
 
 ## Features
 
@@ -12,19 +17,28 @@ A mindful gaming wellness app that helps gamers track, balance, and improve thei
 - **⚙️ Settings** - Customize your experience and manage your profile
 - **🔐 User Accounts** - Sign up with email or Google, sync data across devices
 - **📱 PWA Support** - Install as a native app on any device
+- **📲 Auto-Tracking (Android)** - Automatic game session detection using Android Usage Stats API
 
 ## Tech Stack
 
+### Core
 - **React 19** - UI framework
 - **TypeScript** - Type-safe development
 - **Vite** - Fast development and build tool
 - **Tailwind CSS v4** - Styling with Matsu (Ghibli-inspired) theme
+
+### State & Data
 - **Zustand** - State management
 - **Firebase** - Authentication and Firestore database
+
+### UI & Animation
 - **Framer Motion** - Animations
 - **Recharts** - Data visualization
 - **Radix UI** - Accessible component primitives
-- **vite-plugin-pwa** - Progressive Web App support
+
+### Mobile
+- **Capacitor** - Native Android wrapper
+- **Android Usage Stats API** - Game session auto-tracking
 
 ## Getting Started
 
@@ -32,6 +46,7 @@ A mindful gaming wellness app that helps gamers track, balance, and improve thei
 
 - Node.js 18+ 
 - npm or yarn
+- Android Studio (for Android development)
 
 ### Installation
 
@@ -39,7 +54,7 @@ A mindful gaming wellness app that helps gamers track, balance, and improve thei
 # Install dependencies
 npm install
 
-# Start development server
+# Start development server (web)
 npm run dev
 ```
 
@@ -51,8 +66,29 @@ npm run dev
 | `npm run build` | Build for production |
 | `npm run preview` | Preview production build locally |
 | `npm run lint` | Run ESLint |
+| `npm run cap:sync` | Sync web build to native platforms |
+| `npm run cap:open:android` | Open Android project in Android Studio |
+| `npm run android:build` | Build and sync for Android |
 
-## Deployment
+## Android Development
+
+The Android app is built using Capacitor, which wraps the web app in a native container.
+
+### Setup
+
+1. Build the web app: `npm run build`
+2. Sync to Android: `npm run cap:sync`
+3. Open in Android Studio: `npm run cap:open:android`
+4. Run on device/emulator from Android Studio
+
+### Android-Specific Features
+
+- **Usage Stats Permission** - Required for auto-tracking game sessions
+- **Background Fetch** - Syncs data in the background
+- **Splash Screen** - Native splash screen on app launch
+- **Status Bar** - Themed status bar integration
+
+## Web Deployment
 
 ### Static Hosting (Recommended)
 
@@ -71,24 +107,6 @@ This app builds to static files and can be deployed to any static hosting servic
 3. Set build command: `npm run build`
 4. Set publish directory: `dist`
 
-#### GitHub Pages
-
-1. Install gh-pages: `npm install -D gh-pages`
-2. Add to `vite.config.ts`:
-   ```ts
-   export default defineConfig({
-     base: '/your-repo-name/',
-     // ... other config
-   })
-   ```
-3. Add script to `package.json`:
-   ```json
-   "scripts": {
-     "deploy": "npm run build && gh-pages -d dist"
-   }
-   ```
-4. Run: `npm run deploy`
-
 #### Cloudflare Pages
 
 1. Push your code to GitHub
@@ -96,19 +114,9 @@ This app builds to static files and can be deployed to any static hosting servic
 3. Set build command: `npm run build`
 4. Set build output directory: `dist`
 
-### Manual Deployment
-
-```bash
-# Build the production bundle
-npm run build
-
-# The output will be in the `dist` folder
-# Upload contents of `dist` to any static web host
-```
-
 ## PWA Features
 
-The app includes full PWA support:
+The web app includes full PWA support:
 
 - **Offline Access** - Works without internet after initial load
 - **Installable** - Add to home screen on mobile or desktop
@@ -118,21 +126,25 @@ The app includes full PWA support:
 ## Project Structure
 
 ```
-src/
-├── components/
-│   ├── budgets/      # Budget management components
-│   ├── charts/       # Data visualization
-│   ├── community/    # Community features
-│   ├── dashboard/    # Dashboard widgets
-│   ├── games/        # Game management
-│   ├── layout/       # App shell, navigation
-│   ├── nudges/       # Wellness notifications
-│   └── ui/           # shadcn/ui components
-├── hooks/            # Custom React hooks
-├── lib/              # Utility functions
-├── pages/            # Page components
-├── store/            # Zustand stores
-└── types/            # TypeScript types
+├── android/              # Android native project (Capacitor)
+├── src/
+│   ├── components/
+│   │   ├── budgets/      # Budget management
+│   │   ├── charts/       # Data visualization
+│   │   ├── community/    # Community features
+│   │   ├── dashboard/    # Dashboard widgets
+│   │   ├── games/        # Game management
+│   │   ├── layout/       # App shell, navigation
+│   │   ├── nudges/       # Wellness notifications
+│   │   ├── settings/     # Settings components
+│   │   └── ui/           # shadcn/ui components
+│   ├── hooks/            # Custom React hooks
+│   ├── lib/              # Utility functions
+│   ├── pages/            # Page components
+│   ├── plugins/          # Capacitor plugins
+│   ├── store/            # Zustand stores
+│   └── types/            # TypeScript types
+└── capacitor.config.ts   # Capacitor configuration
 ```
 
 ## Browser Support
@@ -142,9 +154,9 @@ src/
 - Safari 14+
 - Edge 90+
 
-## IDE Settings
+## Android Support
 
-Contributors should keep their IDE-specific settings (e.g., `.settings/`, `.idea/`, `local.properties`) local. The `.settings` directory is ignored and should be generated by your IDE if needed. Do not commit these files.
+- Android 6.0+ (API 23+)
 
 ## License
 

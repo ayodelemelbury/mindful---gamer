@@ -22,6 +22,11 @@ interface UserSettings {
   autoTrackingLastSync: number | null
   autoTrackingDailySynced: Record<string, number>
   ignoredPackages: string[]
+  // Privacy settings
+  shareActivityWithFriends: boolean
+  showInCommunityRankings: boolean
+  // Appearance
+  theme: 'light' | 'dark' | 'system'
   // Gamification
   currentStreak: number
   longestStreak: number
@@ -39,6 +44,11 @@ const defaultSettings: UserSettings = {
   autoTrackingLastSync: null,
   autoTrackingDailySynced: {},
   ignoredPackages: [],
+  // Privacy defaults
+  shareActivityWithFriends: false,
+  showInCommunityRankings: true,
+  // Appearance
+  theme: 'light',
   // Gamification defaults
   currentStreak: 0,
   longestStreak: 0,
@@ -277,6 +287,11 @@ export const useUserStore = create<UserState>()(
         }),
 
       clearUserData: () => {
+        // Preserve auto-tracking baseline to prevent old Android usage from being re-added
+        const currentSettings = get().settings
+        const preservedBaseline = currentSettings.autoTrackingDailySynced
+        const preservedLastSync = currentSettings.autoTrackingLastSync
+
         useSessionStore.setState({
           recentSessions: [],
           games: [],
@@ -314,7 +329,12 @@ export const useUserStore = create<UserState>()(
           isAuthenticated: false,
           isDataLoading: false,
           lastSyncedAt: null,
-          settings: defaultSettings,
+          settings: {
+            ...defaultSettings,
+            // Preserve auto-tracking baseline so old Android usage isn't re-counted
+            autoTrackingDailySynced: preservedBaseline,
+            autoTrackingLastSync: preservedLastSync,
+          },
         })
       },
     }),

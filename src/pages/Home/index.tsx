@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { BalanceGauge } from "../../components/dashboard/BalanceGauge"
 import { BudgetCard } from "../../components/budgets/BudgetCard"
 import { GameSelector } from "../../components/dashboard/GameSelector"
@@ -74,6 +74,8 @@ export function HomePage() {
     gameName: string
     duration: number
   } | null>(null)
+  // Track whether session was already saved to prevent double-add
+  const sessionSavedRef = useRef(false)
 
   // Real-time session tracking with live seconds display
   useEffect(() => {
@@ -117,6 +119,7 @@ export function HomePage() {
       const result = stopSession()
 
       if (result && result.duration > 0 && gameName) {
+        sessionSavedRef.current = false // Reset flag for new session
         setFinishedSession({
           gameName,
           duration: result.duration,
@@ -131,7 +134,8 @@ export function HomePage() {
   }
 
   const handleSaveNote = (note: string) => {
-    if (finishedSession) {
+    if (finishedSession && !sessionSavedRef.current) {
+      sessionSavedRef.current = true // Mark as saved to prevent double-add
       addSession(
         finishedSession.gameName,
         finishedSession.duration,
@@ -415,8 +419,9 @@ export function HomePage() {
         <SessionNoteDialog
           open={showNoteDialog}
           onClose={() => {
-            // Save session without note if dialog is dismissed
-            if (finishedSession) {
+            // Save session without note if dialog is dismissed (only if not already saved)
+            if (finishedSession && !sessionSavedRef.current) {
+              sessionSavedRef.current = true
               addSession(
                 finishedSession.gameName,
                 finishedSession.duration,
