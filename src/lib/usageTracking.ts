@@ -820,6 +820,48 @@ export async function autoLearnGameMapping(
   return { success: false, gameName: null }
 }
 
+// ==================== Usage Baseline for Clear Operations ====================
+
+/**
+ * Get current usage totals for all games in the user's library.
+ * Used to seed autoTrackingDailySynced when clearing data, so that
+ * only NEW usage after the clear is counted.
+ */
+export async function getCurrentUsageBaseline(
+  userLibraryGames: Game[] = []
+): Promise<Record<string, number>> {
+  if (!isNativeAndroid()) {
+    return {}
+  }
+
+  const baseline: Record<string, number> = {}
+
+  // Get today's usage
+  const now = new Date()
+  const startOfDay = new Date(now)
+  startOfDay.setHours(0, 0, 0, 0)
+
+  try {
+    const sessions = await getAutoTrackedSessionsHybrid(
+      {},
+      userLibraryGames,
+      { start: startOfDay.getTime(), end: now.getTime() },
+      []
+    )
+
+    // Build baseline map: packageName -> total minutes for today
+    for (const session of sessions) {
+      baseline[session.packageName] = session.duration
+    }
+
+    console.log("[UsageTracking] Generated usage baseline:", baseline)
+  } catch (error) {
+    console.error("[UsageTracking] Error getting usage baseline:", error)
+  }
+
+  return baseline
+}
+
 // ==================== Debug & Diagnostics ====================
 
 export interface DiagnosticInfo {
